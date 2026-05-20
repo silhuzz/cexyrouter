@@ -1,0 +1,66 @@
+[
+  {
+    "coin": "USDT",
+    "name": "TetherUS",
+    "depositAllEnable": true,
+    "withdrawAllEnable": true,
+    "networkList": [
+      {
+        "coin": "USDT",
+        "name": "Ethereum (ERC20)",
+        "network": "ETH",
+        "depositEnable": true,
+        "withdrawEnable": true,
+        "withdrawFee": "3.5",
+        "withdrawMin": "10",
+        "minConfirm": 12,
+        "unLockConfirm": 64,
+        "busy": false
+      },
+      {
+        "coin": "USDT",
+        "name": "Tron (TRC20)",
+        "network": "TRX",
+        "depositEnable": true,
+        "withdrawEnable": false,
+        "withdrawFee": "1",
+        "withdrawMin": "5",
+        "minConfirm": 1,
+        "unLockConfirm": 1,
+        "busy": false
+      },
+      {
+        "coin": "USDT",
+        "name": "BNB Smart Chain (BEP20)",
+        "network": "BSC",
+        "depositEnable": false,
+        "withdrawEnable": true,
+        "withdrawFee": "0.29",
+        "withdrawMin": "0.8",
+        "minConfirm": 15,
+        "unLockConfirm": 15,
+        "busy": false
+      }
+    ]
+  },
+  {
+    "coin": "XRP",
+    "name": "Ripple",
+    "depositAllEnable": false,
+    "withdrawAllEnable": true,
+    "networkList": [
+      {
+        "coin": "XRP",
+        "name": "XRP Ledger",
+        "network": "XRP",
+        "depositEnable": true,
+        "withdrawEnable": true,
+        "withdrawFee": "0.2",
+        "withdrawMin": "20",
+        "minConfirm": 1,
+        "unLockConfirm": 1,
+        "busy": false
+      }
+    ]
+  }
+]

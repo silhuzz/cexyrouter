@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+.DS_Store
+.git
+.githooks
+normalization-audit
+e2e-smoke
+tmp
+dist
+coverage.out

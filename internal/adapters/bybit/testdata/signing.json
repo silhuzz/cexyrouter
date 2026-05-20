@@ -1,0 +1,8 @@
+{
+  "api_key": "test-key",
+  "api_secret": "test-secret",
+  "timestamp": "1700000000123",
+  "recv_window": "10000",
+  "query_string": "coin=USDT&chain=TRC20",
+  "signature": "98877f970e9c89894f75399573cb1f494b3614c2397f4611ac0832e1898bfb74"
+}

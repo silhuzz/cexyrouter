@@ -1,0 +1,82 @@
+{
+  "retCode": 0,
+  "retMsg": "OK",
+  "result": {
+    "rows": [
+      {
+        "name": "Tether USD",
+        "coin": "USDT",
+        "chains": [
+          {
+            "chain": "ETH",
+            "chainType": "Ethereum",
+            "confirmation": "12",
+            "withdrawFee": "3.5",
+            "depositMin": "0",
+            "withdrawMin": "10",
+            "minAccuracy": "8",
+            "chainDeposit": "1",
+            "chainWithdraw": "0",
+            "withdrawPercentageFee": "0",
+            "contractAddress": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+            "safeConfirmNumber": "12",
+            "withdrawMax": "100000"
+          },
+          {
+            "chain": "TRX",
+            "chainType": "Tron",
+            "confirmation": "20",
+            "withdrawFee": "1",
+            "depositMin": "0",
+            "withdrawMin": "5",
+            "minAccuracy": "6",
+            "chainDeposit": "1",
+            "chainWithdraw": "1",
+            "withdrawPercentageFee": "0",
+            "contractAddress": "TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj",
+            "safeConfirmNumber": "20",
+            "withdrawMax": "50000"
+          },
+          {
+            "chain": "ARB",
+            "chainType": "Arbitrum One",
+            "confirmation": "64",
+            "withdrawFee": "0.2",
+            "depositMin": "0",
+            "withdrawMin": "2",
+            "minAccuracy": "6",
+            "chainDeposit": "0",
+            "chainWithdraw": "1",
+            "withdrawPercentageFee": "0.01",
+            "contractAddress": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+            "safeConfirmNumber": "64",
+            "withdrawMax": "10000"
+          }
+        ]
+      },
+      {
+        "name": "XRP",
+        "coin": "XRP",
+        "chains": [
+          {
+            "chain": "XRP",
+            "chainType": "XRP Ledger",
+            "confirmation": "1",
+            "withdrawFee": "0.25",
+            "depositMin": "0",
+            "withdrawMin": "20",
+            "minAccuracy": "6",
+            "chainDeposit": "1",
+            "chainWithdraw": "1",
+            "withdrawPercentageFee": "0",
+            "contractAddress": "",
+            "safeConfirmNumber": "1",
+            "withdrawMax": "100000"
+          }
+        ]
+      }
+    ]
+  },
+  "retExtInfo": {},
+  "time": 1700000000123
+}

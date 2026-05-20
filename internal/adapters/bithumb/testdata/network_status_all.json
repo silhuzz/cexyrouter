@@ -1,0 +1,23 @@
+{
+  "status": "0000",
+  "data": [
+    {
+      "currency": "USDT",
+      "net_type": "ETH",
+      "deposit_status": 1,
+      "withdrawal_status": 0
+    },
+    {
+      "currency": "USDT",
+      "net_type": "TRX",
+      "deposit_status": 1,
+      "withdrawal_status": 1
+    },
+    {
+      "currency": "XRP",
+      "net_type": "XRP",
+      "deposit_status": 1,
+      "withdrawal_status": 0
+    }
+  ]
+}

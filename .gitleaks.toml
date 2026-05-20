@@ -1,0 +1,9 @@
+title = "cex-router gitleaks config"
+
+[allowlist]
+description = "Known-safe placeholders"
+regexes = [
+  '''replace-me''',
+  '''change-me''',
+  '''cex_router:cex_router''',
+]

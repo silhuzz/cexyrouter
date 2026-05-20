@@ -1,0 +1,44 @@
+[
+  {
+    "name": "테더",
+    "currency": "USDT",
+    "networks": [
+      {
+        "net_name": "Ethereum",
+        "deposit_fee_quantity": "0",
+        "deposit_minimum_quantity": "0",
+        "withdraw_fee_quantity": "3.5",
+        "withdraw_minimum_quantity": "10",
+        "withdraw_rate": null,
+        "withdraw_fee_max": null,
+        "withdraw_fee_min": null
+      },
+      {
+        "net_name": "Tron",
+        "deposit_fee_quantity": "0",
+        "deposit_minimum_quantity": "0",
+        "withdraw_fee_quantity": null,
+        "withdraw_minimum_quantity": "5",
+        "withdraw_rate": "0.01",
+        "withdraw_fee_max": null,
+        "withdraw_fee_min": null
+      }
+    ]
+  },
+  {
+    "name": "엑스알피[리플]",
+    "currency": "XRP",
+    "networks": [
+      {
+        "net_name": "XRP",
+        "deposit_fee_quantity": "0",
+        "deposit_minimum_quantity": "0",
+        "withdraw_fee_quantity": "0.4",
+        "withdraw_minimum_quantity": "1",
+        "withdraw_rate": null,
+        "withdraw_fee_max": null,
+        "withdraw_fee_min": null
+      }
+    ]
+  }
+]

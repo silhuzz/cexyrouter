@@ -1,0 +1,714 @@
+openapi: 3.0.3
+info:
+  title: CEX Router API
+  version: 0.1.0
+  description: Public read API for centralized-exchange deposit and withdrawal rail status.
+  license:
+    name: Not specified
+    url: https://choosealicense.com/no-permission/
+servers:
+  - url: /
+security: []
+tags:
+  - name: Reference
+    description: Canonical exchanges, coins, and chains.
+  - name: Rails
+    description: Current exchange rail state.
+  - name: Routes
+    description: CEX route discovery, including same-token and equivalent-asset routes.
+  - name: Events
+    description: Historical rail state changes.
+  - name: System
+    description: Health and operational status.
+paths:
+  /healthz:
+    get:
+      tags:
+        - System
+      summary: Check API and database health
+      operationId: getHealthz
+      responses:
+        "200":
+          description: Database is reachable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "503":
+          description: Database is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /v1/exchanges:
+    get:
+      tags:
+        - Reference
+      summary: List canonical exchanges
+      operationId: listExchanges
+      responses:
+        "200":
+          description: Canonical exchange reference data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExchangeListResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/coins:
+    get:
+      tags:
+        - Reference
+      summary: List canonical coins
+      operationId: listCoins
+      responses:
+        "200":
+          description: Canonical coin reference data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoinListResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/chains:
+    get:
+      tags:
+        - Reference
+      summary: List canonical chains
+      operationId: listChains
+      responses:
+        "200":
+          description: Canonical chain reference data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChainListResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/rails:
+    get:
+      tags:
+        - Rails
+      summary: List exchange deposit and withdrawal rails
+      operationId: listRails
+      parameters:
+        - $ref: "#/components/parameters/ExchangeSlugFilter"
+        - $ref: "#/components/parameters/CoinSlugFilter"
+        - $ref: "#/components/parameters/ChainSlugFilter"
+        - name: deposit_enabled
+          in: query
+          schema:
+            type: boolean
+          description: Filter rails by deposit availability.
+        - name: withdraw_enabled
+          in: query
+          schema:
+            type: boolean
+          description: Filter rails by withdrawal availability.
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Opaque base64 cursor for the last seen `(coin_id, chain_id, exchange_id)` key.
+        - $ref: "#/components/parameters/RailsLimit"
+      responses:
+        "200":
+          description: Paginated rail rows ordered by `(coin_id, chain_id, exchange_id)`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RailPageResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/route-options:
+    get:
+      tags:
+        - Routes
+      summary: List valid route finder chain options
+      operationId: listRouteOptions
+      parameters:
+        - name: coin
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Canonical coin slug.
+        - name: equivalent_assets
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Include destination chains reachable through equivalent asset-family members.
+      responses:
+        "200":
+          description: Valid source/destination chains and chain pairs for active open routes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteOptions"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/routes:
+    get:
+      tags:
+        - Routes
+      summary: Find CEX routes
+      operationId: listRoutes
+      parameters:
+        - name: coin
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Canonical coin slug.
+        - name: from_chain
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Chain slug for the deposit side of the route.
+        - name: to_chain
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Chain slug for the withdrawal side of the route.
+        - name: amount
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: "^[0-9]+(\\.[0-9]+)?$"
+          description: Exact decimal amount, required when a candidate route has a percent or hybrid withdrawal fee.
+        - name: equivalent_assets
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Allow destination coins in the same asset family, for example BTC to WBTC.
+      responses:
+        "200":
+          description: Active and enabled routes ranked by estimated total fee.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteListResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/events:
+    get:
+      tags:
+        - Events
+      summary: List rail events newest first
+      operationId: listEvents
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Opaque base64 cursor for `(occurred_at, id)`; returns events strictly older than that point.
+        - $ref: "#/components/parameters/EventsLimit"
+        - name: event_type
+          in: query
+          schema:
+            $ref: "#/components/schemas/EventType"
+        - $ref: "#/components/parameters/ExchangeSlugFilter"
+        - $ref: "#/components/parameters/CoinSlugFilter"
+        - $ref: "#/components/parameters/ChainSlugFilter"
+      responses:
+        "200":
+          description: Paginated event rows ordered by `(occurred_at DESC, id DESC)`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventPageResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/adapters/freshness:
+    get:
+      tags:
+        - System
+      summary: List adapter freshness for each exchange
+      operationId: listAdapterFreshness
+      responses:
+        "200":
+          description: Adapter polling freshness rows.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdapterFreshnessListResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        default:
+          $ref: "#/components/responses/Error"
+components:
+  parameters:
+    ExchangeSlugFilter:
+      name: exchange
+      in: query
+      schema:
+        type: string
+      description: Canonical exchange slug.
+    CoinSlugFilter:
+      name: coin
+      in: query
+      schema:
+        type: string
+      description: Canonical coin slug.
+    ChainSlugFilter:
+      name: chain
+      in: query
+      schema:
+        type: string
+      description: Canonical chain slug.
+    RailsLimit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 100
+      description: Maximum number of rails to return.
+    EventsLimit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 50
+      description: Maximum number of events to return.
+  responses:
+    Error:
+      description: Request failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - unhealthy
+        error:
+          type: string
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    Exchange:
+      type: object
+      required:
+        - id
+        - slug
+        - name
+        - region
+      properties:
+        id:
+          type: integer
+          format: int32
+        slug:
+          type: string
+        name:
+          type: string
+        region:
+          type: string
+    Coin:
+      type: object
+      required:
+        - id
+        - slug
+        - symbol
+        - name
+        - external_ids
+      properties:
+        id:
+          type: integer
+          format: int32
+        slug:
+          type: string
+        symbol:
+          type: string
+        name:
+          type: string
+        external_ids:
+          type: object
+          additionalProperties: true
+    CoinRef:
+      type: object
+      required:
+        - id
+        - slug
+        - symbol
+        - name
+      properties:
+        id:
+          type: integer
+          format: int32
+        slug:
+          type: string
+        symbol:
+          type: string
+        name:
+          type: string
+    Chain:
+      type: object
+      required:
+        - id
+        - slug
+        - symbol
+        - name
+        - evm_chain_id
+        - parent_chain_id
+      properties:
+        id:
+          type: integer
+          format: int32
+        slug:
+          type: string
+        symbol:
+          type: string
+        name:
+          type: string
+        evm_chain_id:
+          type: integer
+          format: int32
+          nullable: true
+        parent_chain_id:
+          type: integer
+          format: int32
+          nullable: true
+    Rail:
+      type: object
+      required:
+        - id
+        - exchange
+        - coin
+        - chain
+        - deposit_enabled
+        - withdraw_enabled
+        - deposit_confirmations
+        - withdraw_min
+        - withdraw_fee
+        - withdraw_fee_type
+        - withdraw_fee_percent
+        - deposit_off_started_at
+        - withdraw_off_started_at
+        - is_active
+        - missing_since
+        - missing_count
+        - is_initial
+        - last_seen_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        exchange:
+          $ref: "#/components/schemas/Exchange"
+        coin:
+          $ref: "#/components/schemas/CoinRef"
+        chain:
+          $ref: "#/components/schemas/Chain"
+        deposit_enabled:
+          type: boolean
+        withdraw_enabled:
+          type: boolean
+        deposit_confirmations:
+          type: integer
+          format: int32
+          nullable: true
+        withdraw_min:
+          type: string
+          nullable: true
+          pattern: "^-?[0-9]+(\\.[0-9]+)?$"
+          description: Exact decimal string.
+        withdraw_fee:
+          type: string
+          nullable: true
+          pattern: "^-?[0-9]+(\\.[0-9]+)?$"
+          description: Exact decimal string.
+        withdraw_fee_type:
+          type: string
+          nullable: true
+          enum:
+            - fixed
+            - percent
+            - hybrid
+        withdraw_fee_percent:
+          type: string
+          nullable: true
+          pattern: "^-?[0-9]+(\\.[0-9]+)?$"
+          description: Exact decimal string.
+        deposit_off_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        withdraw_off_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_active:
+          type: boolean
+        missing_since:
+          type: string
+          format: date-time
+          nullable: true
+        missing_count:
+          type: integer
+          format: int32
+        is_initial:
+          type: boolean
+        last_seen_at:
+          type: string
+          format: date-time
+    EventType:
+      type: string
+      enum:
+        - deposit_off
+        - deposit_on
+        - withdraw_off
+        - withdraw_on
+        - fee_changed
+        - min_changed
+        - rail_delisted
+        - rail_relisted
+    RailEvent:
+      type: object
+      required:
+        - id
+        - rail_id
+        - event_type
+        - exchange
+        - coin
+        - chain
+        - before
+        - after
+        - occurred_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        rail_id:
+          type: integer
+          format: int64
+        event_type:
+          $ref: "#/components/schemas/EventType"
+        exchange:
+          $ref: "#/components/schemas/Exchange"
+        coin:
+          $ref: "#/components/schemas/CoinRef"
+        chain:
+          $ref: "#/components/schemas/Chain"
+        before:
+          type: object
+          additionalProperties: true
+        after:
+          type: object
+          additionalProperties: true
+        occurred_at:
+          type: string
+          format: date-time
+    Route:
+      type: object
+      required:
+        - exchange
+        - coin
+        - from_coin
+        - to_coin
+        - from_chain
+        - to_chain
+        - deposit_rail
+        - withdraw_rail
+        - total_fee_estimate
+        - equivalent_asset
+        - route_kind
+      properties:
+        exchange:
+          $ref: "#/components/schemas/Exchange"
+        coin:
+          $ref: "#/components/schemas/CoinRef"
+        from_coin:
+          $ref: "#/components/schemas/CoinRef"
+        to_coin:
+          $ref: "#/components/schemas/CoinRef"
+        from_chain:
+          $ref: "#/components/schemas/Chain"
+        to_chain:
+          $ref: "#/components/schemas/Chain"
+        deposit_rail:
+          $ref: "#/components/schemas/Rail"
+        withdraw_rail:
+          $ref: "#/components/schemas/Rail"
+        total_fee_estimate:
+          type: string
+          pattern: "^-?[0-9]+(\\.[0-9]+)?$"
+          description: Exact decimal string in token units.
+        equivalent_asset:
+          type: boolean
+          description: True when the deposit and withdrawal coins differ but share an asset family.
+        route_kind:
+          type: string
+          enum:
+            - same_asset
+            - equivalent_asset
+          description: Machine-readable route category for UI labeling.
+    RouteOptionPair:
+      type: object
+      required:
+        - from_chain
+        - to_chain
+      properties:
+        from_chain:
+          $ref: "#/components/schemas/Chain"
+        to_chain:
+          $ref: "#/components/schemas/Chain"
+    RouteOptions:
+      type: object
+      required:
+        - coin
+        - from_chains
+        - to_chains
+        - pairs
+      properties:
+        coin:
+          $ref: "#/components/schemas/CoinRef"
+        from_chains:
+          type: array
+          items:
+            $ref: "#/components/schemas/Chain"
+        to_chains:
+          type: array
+          items:
+            $ref: "#/components/schemas/Chain"
+        pairs:
+          type: array
+          items:
+            $ref: "#/components/schemas/RouteOptionPair"
+    AdapterFreshness:
+      type: object
+      required:
+        - exchange
+        - last_successful_poll
+        - last_attempt
+        - last_error
+        - consecutive_failures
+      properties:
+        exchange:
+          $ref: "#/components/schemas/Exchange"
+        last_successful_poll:
+          type: string
+          format: date-time
+          nullable: true
+        last_attempt:
+          type: string
+          format: date-time
+          nullable: true
+        last_error:
+          type: string
+          nullable: true
+        consecutive_failures:
+          type: integer
+          format: int32
+    ExchangeListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Exchange"
+    CoinListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Coin"
+    ChainListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Chain"
+    RailPageResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Rail"
+        next_cursor:
+          type: string
+    RouteListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Route"
+    EventPageResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RailEvent"
+        next_cursor:
+          type: string
+    AdapterFreshnessListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdapterFreshness"

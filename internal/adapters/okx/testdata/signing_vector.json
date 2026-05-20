@@ -1,0 +1,8 @@
+{
+  "secret": "test-secret",
+  "timestamp": "2026-05-20T14:30:01.234Z",
+  "method": "GET",
+  "request_path": "/api/v5/asset/currencies?ccy=USDT",
+  "body": "",
+  "expected_signature": "Ha07zUIgEZmB5aVmy0i7AaTmPgAnCP3abNiVN8P4d/U="
+}

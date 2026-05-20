@@ -1,0 +1,15 @@
+.DS_Store
+
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+bin/
+coverage.out
+tmp/
+dist/
+e2e-smoke
+normalization-audit

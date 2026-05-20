@@ -1,0 +1,37 @@
+{
+  "code": "0",
+  "msg": "",
+  "data": [
+    {
+      "ccy": "USDT",
+      "name": "Tether",
+      "chain": "USDT-ERC20",
+      "canDep": true,
+      "canWd": true,
+      "ctAddr": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "minWd": "10",
+      "minFee": "3.5",
+      "minDepArrivalConfirm": "12"
+    },
+    {
+      "ccy": "USDT",
+      "name": "Tether",
+      "chain": "USDT-TRC20",
+      "canDep": "true",
+      "canWd": "false",
+      "minWd": "5",
+      "minFee": "1",
+      "minDepArrivalConfirm": "20"
+    },
+    {
+      "ccy": "ETH",
+      "name": "Ethereum",
+      "chain": "ETH-Arbitrum One",
+      "canDep": false,
+      "canWd": true,
+      "minWd": "",
+      "minFee": "0.0001",
+      "minDepArrivalConfirm": "64"
+    }
+  ]
+}
