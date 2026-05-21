@@ -13,6 +13,16 @@
 
 CEXYROUTER monitors centralized exchange deposit and withdrawal rails, normalizes token and chain names, finds usable cross-exchange routes, and pushes status changes to a web UI, WebSocket clients, REST consumers, and Telegram.
 
+**Live demo:** [cex-router-api-production.up.railway.app](https://cex-router-api-production.up.railway.app/)
+
+<p align="center">
+  <a href="https://cex-router-api-production.up.railway.app/">
+    <img src="docs/images/web-ui-dashboard.png" alt="CEXYROUTER web dashboard: status board, route finder, and live event feed" width="100%" />
+  </a>
+</p>
+
+<p align="center"><em>One dashboard, three panels: rail status across nine exchanges, a cross-exchange route finder, and a live event feed — all driven by the same ingest pipeline.</em></p>
+
 The hackathon demo path is built around three visible moments: live route availability, controlled route status changes, and Telegram alerts that users can filter by exchange, token, and chain.
 
 <p align="center">
