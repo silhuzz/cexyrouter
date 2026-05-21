@@ -8,9 +8,9 @@
     <meta property="og:title" content="CexyRouter live rail console">
     <meta property="og:description" content="Live exchange rail status, route finding, and Telegram alerts.">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="preload" href="/cexyrouter-logo.svg?v=20260521-console" as="image" type="image/svg+xml">
-    <link rel="stylesheet" href="/app.css?v=20260521-console">
-    <script defer src="/app.js?v=20260521-console"></script>
+    <link rel="preload" href="/cexyrouter-logo.svg?v=20260521-engrave" as="image" type="image/svg+xml">
+    <link rel="stylesheet" href="/app.css?v=20260521-engrave">
+    <script defer src="/app.js?v=20260521-engrave"></script>
   </head>
   <body>
     <main class="stage">
@@ -30,7 +30,7 @@
           </section>
 
           <a class="logo-plate" href="#status-board-title" aria-label="CexyRouter console home">
-            <img class="brand-logo" src="/cexyrouter-logo.svg?v=20260521-console" alt="CexyRouter">
+            <img class="brand-logo" src="/cexyrouter-logo.svg?v=20260521-engrave" alt="CexyRouter">
             <span>live CEX rail status · cross-chain routes · push alerts</span>
           </a>
 
@@ -116,26 +116,26 @@
               </div>
               <div class="feed-filters" aria-label="Live feed filters">
                 <label>
-                  Exchange
-                  <select id="event-exchange-filter">
+                  Exchanges
+                  <select id="event-exchange-filter" multiple size="4">
                     <option value="">All exchanges</option>
                   </select>
                 </label>
                 <label>
-                  Coin
-                  <select id="event-coin-filter">
+                  Coins
+                  <select id="event-coin-filter" multiple size="4">
                     <option value="">All coins</option>
                   </select>
                 </label>
                 <label>
-                  Chain
-                  <select id="event-chain-filter">
+                  Chains
+                  <select id="event-chain-filter" multiple size="4">
                     <option value="">All chains</option>
                   </select>
                 </label>
                 <label>
-                  Event type
-                  <select id="event-kind-filter">
+                  Event types
+                  <select id="event-kind-filter" multiple size="4">
                     <option value="all">All events</option>
                     <option value="availability">Availability only</option>
                     <option value="deposit_off">Deposit off</option>

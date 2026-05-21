@@ -82,10 +82,10 @@
     eventIds: new Set(),
     lastCursor: null,
     eventFilters: {
-      exchange: "",
-      coin: "",
-      chain: "",
-      kind: "all",
+      exchange: [],
+      coin: [],
+      chain: [],
+      kinds: ["availability"],
     },
     ws: null,
     reconnectTimer: null,
@@ -380,7 +380,7 @@
     });
 
     if (!rail) {
-      return `<td class="status-cell"><div class="status-card missing"><strong>No rail</strong><small>Not listed in current page</small></div></td>`;
+      return `<td class="status-cell"><div class="status-card missing" title="No rail listed for ${escapeHTML(pairLabel(pair))} on ${escapeHTML(exchange)}"><span class="card-empty">—</span></div></td>`;
     }
 
     const active = boolField(rail, ["is_active", "isActive"], true);
@@ -389,28 +389,38 @@
     const fee = field(rail, ["withdraw_fee", "withdrawFee"], "");
     const min = field(rail, ["withdraw_min", "withdrawMin"], "");
     const seen = field(rail, ["last_seen_at", "lastSeenAt"], "");
+    const seenStr = seen ? relativeTime(seen) : "";
+    const feeStr = fee ? `fee ${fee}` : "";
+    const minStr = min ? `min ${min}` : "";
+    const fullMeta = [feeStr, minStr, seenStr].filter(Boolean).join(" · ");
 
-    let label = "Closed";
-    let statusClass = "closed";
     if (!active) {
-      label = "Delisted";
-      statusClass = "inactive";
-    } else if (deposit && withdraw) {
-      label = "Open";
-      statusClass = "open";
-    } else if (deposit || withdraw) {
-      label = deposit ? "Deposit only" : "Withdraw only";
-      statusClass = "partial";
+      return `<td class="status-cell"><div class="status-card inactive" title="Delisted${seenStr ? ` · last seen ${seenStr}` : ""}"><span class="card-empty">—</span><small>delisted</small></div></td>`;
     }
 
-    const meta = [
-      `D:${deposit ? "on" : "off"} W:${withdraw ? "on" : "off"}`,
-      fee ? `Fee ${fee}` : "",
-      min ? `Min ${min}` : "",
-      seen ? relativeTime(seen) : "",
-    ].filter(Boolean).join(" | ");
+    if (deposit && withdraw) {
+      const compactMeta = [feeStr, minStr].filter(Boolean).join(" · ") || "open";
+      const titleAttr = `Open · D on · W on${fullMeta ? ` · ${fullMeta}` : ""}`;
+      return `<td class="status-cell"><div class="status-card open" title="${escapeHTML(titleAttr)}">`
+        + `<span class="card-dot" aria-label="open"></span>`
+        + `<span class="card-meta">${escapeHTML(compactMeta)}</span>`
+        + `<span class="card-time">${escapeHTML(seenStr)}</span>`
+        + `</div></td>`;
+    }
 
-    return `<td class="status-cell"><div class="status-card ${statusClass}"><strong>${label}</strong><small>${escapeHTML(meta)}</small></div></td>`;
+    if (deposit || withdraw) {
+      const label = deposit ? "Withdraw off" : "Deposit off";
+      const titleAttr = `${label}${fullMeta ? ` · ${fullMeta}` : ""}`;
+      return `<td class="status-cell"><div class="status-card partial" title="${escapeHTML(titleAttr)}">`
+        + `<strong>${escapeHTML(label)}</strong>`
+        + `<small>${escapeHTML([feeStr, minStr, seenStr].filter(Boolean).join(" · "))}</small>`
+        + `</div></td>`;
+    }
+
+    return `<td class="status-cell"><div class="status-card closed" title="Closed · D off · W off${seenStr ? ` · ${seenStr}` : ""}">`
+      + `<strong>Closed</strong>`
+      + `<small>${escapeHTML(seenStr)}</small>`
+      + `</div></td>`;
   }
 
   function renderRoutes(routes) {
@@ -666,10 +676,10 @@
   }
 
   function populateEventFilters() {
-    fillSelectWithAll("#event-exchange-filter", state.exchanges, "All exchanges", displayExchange);
-    fillSelectWithAll("#event-coin-filter", state.coins, "All coins", displayCoin);
-    fillSelectWithAll("#event-chain-filter", state.chains, "All chains", displayChain);
-    $("#event-kind-filter").value = "all";
+    fillMultiSelectWithAll("#event-exchange-filter", state.exchanges, "All exchanges", displayExchange, []);
+    fillMultiSelectWithAll("#event-coin-filter", state.coins, "All coins", displayCoin, []);
+    fillMultiSelectWithAll("#event-chain-filter", state.chains, "All chains", displayChain, []);
+    fillStaticMultiSelect("#event-kind-filter", ["availability"]);
   }
 
   function renderClock() {
@@ -702,6 +712,20 @@
     if (items.some((item) => item.slug === previous)) {
       select.value = previous;
     }
+  }
+
+  function fillMultiSelectWithAll(selector, items, allLabel, formatter, selectedValues) {
+    const select = $(selector);
+    const previous = selectedFilterValues(selector);
+    const selected = selectedValues || previous;
+    select.innerHTML = `<option value="">${escapeHTML(allLabel)}</option>` + items.map((item) => {
+      return `<option value="${escapeHTML(item.slug)}">${escapeHTML(formatter(item.slug))}</option>`;
+    }).join("");
+    applySelectedValues(select, selected.filter((value) => items.some((item) => item.slug === value)));
+  }
+
+  function fillStaticMultiSelect(selector, selectedValues) {
+    applySelectedValues($(selector), selectedValues);
   }
 
   function normalizeRouteOptionChains(payload, keys) {
@@ -776,10 +800,10 @@
 
   function readEventFilters() {
     state.eventFilters = {
-      exchange: normalizeSlug($("#event-exchange-filter").value),
-      coin: normalizeSlug($("#event-coin-filter").value),
-      chain: normalizeSlug($("#event-chain-filter").value),
-      kind: $("#event-kind-filter").value || "availability",
+      exchange: selectedFilterValues("#event-exchange-filter"),
+      coin: selectedFilterValues("#event-coin-filter"),
+      chain: selectedFilterValues("#event-chain-filter"),
+      kinds: selectedFilterValues("#event-kind-filter", { defaultValues: ["availability"] }),
     };
   }
 
@@ -792,14 +816,17 @@
 
   function eventQueryParams() {
     const params = new URLSearchParams({ limit: "500", since: EVENTS_WINDOW });
-    if (state.eventFilters.exchange) {
-      params.set("exchange", state.eventFilters.exchange);
+    const exchange = singleFilterValue(state.eventFilters.exchange);
+    const coin = singleFilterValue(state.eventFilters.coin);
+    const chain = singleFilterValue(state.eventFilters.chain);
+    if (exchange) {
+      params.set("exchange", exchange);
     }
-    if (state.eventFilters.coin) {
-      params.set("coin", state.eventFilters.coin);
+    if (coin) {
+      params.set("coin", coin);
     }
-    if (state.eventFilters.chain) {
-      params.set("chain", state.eventFilters.chain);
+    if (chain) {
+      params.set("chain", chain);
     }
     const selectedTypes = eventTypeFilterValues();
     for (const type of selectedTypes) {
@@ -810,14 +837,14 @@
 
   function eventSocketFilters() {
     const filters = {};
-    if (state.eventFilters.exchange) {
-      filters.exchange = [state.eventFilters.exchange];
+    if (state.eventFilters.exchange.length > 0) {
+      filters.exchange = state.eventFilters.exchange;
     }
-    if (state.eventFilters.coin) {
-      filters.coin = [state.eventFilters.coin];
+    if (state.eventFilters.coin.length > 0) {
+      filters.coin = state.eventFilters.coin;
     }
-    if (state.eventFilters.chain) {
-      filters.chain = [state.eventFilters.chain];
+    if (state.eventFilters.chain.length > 0) {
+      filters.chain = state.eventFilters.chain;
     }
     const selectedTypes = eventTypeFilterValues();
     if (selectedTypes.length > 0) {
@@ -827,13 +854,19 @@
   }
 
   function eventTypeFilterValues() {
-    if (state.eventFilters.kind === "all") {
+    const kinds = state.eventFilters.kinds || [];
+    if (kinds.length === 0 || kinds.includes("all")) {
       return [];
     }
-    if (state.eventFilters.kind === "availability") {
-      return AVAILABILITY_EVENT_TYPES;
+    const values = new Set();
+    for (const kind of kinds) {
+      if (kind === "availability") {
+        AVAILABILITY_EVENT_TYPES.forEach((type) => values.add(type));
+      } else {
+        values.add(kind);
+      }
     }
-    return [state.eventFilters.kind];
+    return Array.from(values);
   }
 
   function filteredEvents() {
@@ -841,13 +874,13 @@
   }
 
   function eventMatchesFilters(event) {
-    if (state.eventFilters.exchange && state.eventFilters.exchange !== exchangeSlug(event)) {
+    if (state.eventFilters.exchange.length > 0 && !state.eventFilters.exchange.includes(exchangeSlug(event))) {
       return false;
     }
-    if (state.eventFilters.coin && state.eventFilters.coin !== coinSlug(event)) {
+    if (state.eventFilters.coin.length > 0 && !state.eventFilters.coin.includes(coinSlug(event))) {
       return false;
     }
-    if (state.eventFilters.chain && state.eventFilters.chain !== chainSlug(event)) {
+    if (state.eventFilters.chain.length > 0 && !state.eventFilters.chain.includes(chainSlug(event))) {
       return false;
     }
     const selectedTypes = eventTypeFilterValues();
@@ -856,6 +889,30 @@
       return selectedTypes.includes(type);
     }
     return true;
+  }
+
+  function selectedFilterValues(selector, options = {}) {
+    const values = Array.from($(selector).selectedOptions || [])
+      .map((option) => normalizeSlug(option.value))
+      .filter((value) => value !== "");
+    if (Array.from($(selector).selectedOptions || []).some((option) => option.value === "")) {
+      return [];
+    }
+    if (values.length === 0 && options.defaultValues) {
+      return options.defaultValues;
+    }
+    return values;
+  }
+
+  function applySelectedValues(select, values) {
+    const selected = new Set(values);
+    Array.from(select.options).forEach((option) => {
+      option.selected = selected.size === 0 ? option.value === "" : selected.has(option.value);
+    });
+  }
+
+  function singleFilterValue(values) {
+    return values.length === 1 ? values[0] : "";
   }
 
   function unwrapEvent(payload) {

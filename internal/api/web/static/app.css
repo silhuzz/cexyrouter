@@ -167,10 +167,19 @@ button {
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
-  padding: 6px 14px;
+  padding: 10px 18px 8px;
   text-decoration: none;
+  background:
+    radial-gradient(ellipse at 50% 120%, rgba(40, 18, 10, 0.22), transparent 65%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 14%),
+    linear-gradient(180deg, var(--ivory), var(--ivory-deep));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.2),
+    inset 0 0 0 1px rgba(40, 18, 10, 0.12),
+    0 3px 0 rgba(0, 0, 0, 0.28);
 }
 
 .brand-logo {
@@ -178,14 +187,19 @@ button {
   width: min(100%, 510px);
   max-height: 46px;
   object-fit: contain;
-  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.18));
+  color: rgba(58, 22, 14, 0.58);
+  filter:
+    drop-shadow(0 1px 0 rgba(255, 247, 224, 0.78))
+    drop-shadow(0 -0.5px 0 rgba(20, 6, 0, 0.22));
 }
 
 .logo-plate span {
-  color: rgba(32, 23, 20, 0.7);
-  font-size: 0.62rem;
+  color: rgba(46, 22, 14, 0.55);
+  font-size: 0.6rem;
   font-weight: 800;
+  letter-spacing: 0.04em;
   text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 247, 224, 0.65);
 }
 
 .freshness-banner.ok {
@@ -475,10 +489,9 @@ button {
   display: grid;
   gap: 4px;
   min-height: 76px;
-  border: 1px solid var(--lcd-line);
+  border: 1px solid transparent;
   border-radius: 5px;
-  padding: 9px;
-  background: rgba(178, 230, 92, 0.035);
+  padding: 9px 10px;
   text-shadow: none;
 }
 
@@ -494,42 +507,97 @@ button {
   line-height: 1.35;
 }
 
+/* Healthy: blends with the panel — eye should slide past it. */
 .status-card.open {
-  border-color: rgba(116, 240, 107, 0.45);
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  align-items: center;
+  gap: 2px 8px;
+  background: rgba(178, 230, 92, 0.035);
 }
 
-.status-card.open strong::before {
-  content: "";
-  display: inline-block;
+.status-card.open .card-dot {
+  grid-row: 1;
+  grid-column: 1;
   width: 7px;
   height: 7px;
-  margin-right: 7px;
   border-radius: 50%;
   background: var(--ok);
-  box-shadow: 0 0 8px var(--ok);
+  box-shadow: 0 0 6px rgba(116, 240, 107, 0.55);
 }
 
+.status-card.open .card-meta {
+  grid-row: 1;
+  grid-column: 2;
+  color: var(--lcd-fg);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-card.open .card-time {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  align-self: end;
+  color: var(--lcd-dim);
+  font-size: 0.7rem;
+}
+
+/* Problem states: shout. */
 .status-card.partial {
-  border-color: rgba(244, 200, 77, 0.65);
-  background: rgba(244, 200, 77, 0.08);
+  border-color: rgba(244, 200, 77, 0.7);
+  background: rgba(244, 200, 77, 0.12);
+  box-shadow: inset 3px 0 0 var(--warn), 0 0 12px rgba(244, 200, 77, 0.08);
+}
+
+.status-card.partial strong {
+  color: var(--warn);
+  font-size: 0.84rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .status-card.closed {
-  border-color: rgba(255, 114, 93, 0.65);
-  background: rgba(255, 114, 93, 0.08);
+  border-color: rgba(255, 114, 93, 0.75);
+  background: rgba(255, 114, 93, 0.14);
+  box-shadow: inset 3px 0 0 var(--bad), 0 0 14px rgba(255, 114, 93, 0.12);
 }
 
+.status-card.closed strong {
+  color: var(--bad);
+  font-size: 0.92rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Absent states: nearly invisible, dim em-dash. */
 .status-card.inactive,
 .status-card.missing {
-  border-color: rgba(178, 230, 92, 0.12);
-  background: rgba(255, 255, 255, 0.035);
+  display: grid;
+  place-items: center;
+  background: transparent;
 }
 
-.status-card.inactive strong,
-.status-card.missing strong,
-.status-card.inactive small,
-.status-card.missing small {
+.status-card.missing {
+  border: 1px dashed rgba(178, 230, 92, 0.1);
+}
+
+.status-card .card-empty {
   color: var(--lcd-dim);
+  font-size: 1.1rem;
+  line-height: 1;
+  opacity: 0.55;
+}
+
+.status-card.inactive small {
+  margin-top: 2px;
+  color: var(--lcd-dim);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
 }
 
 .loading-cell {
@@ -683,6 +751,17 @@ button {
   font-size: 0.68rem;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.feed-filters select[multiple] {
+  height: 104px;
+  padding: 7px;
+  overflow: auto;
+}
+
+.feed-filters select[multiple] option {
+  border-radius: 4px;
+  padding: 4px 6px;
 }
 
 .events-list {

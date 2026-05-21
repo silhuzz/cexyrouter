@@ -1,9 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 190" role="img" aria-labelledby="title desc">
   <title id="title">CexyRouter</title>
-  <desc id="desc">Blue box-drawing ASCII art logo spelling CexyRouter.</desc>
-  <rect width="980" height="190" rx="18" fill="#f8fbff"/>
-  <rect x="10" y="10" width="960" height="170" rx="14" fill="none" stroke="#b9cdfd" stroke-width="2"/>
-  <g fill="#2457d6" font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="900">
+  <desc id="desc">Box-drawing ASCII art logo spelling CexyRouter, debossed into the bezel plastic.</desc>
+  <g fill="currentColor" font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="900">
     <g font-size="17">
       <text x="32" y="38" xml:space="preserve"> ██████╗███████╗██╗  ██╗██╗   ██╗██████╗  ██████╗ ██╗   ██╗████████╗███████╗██████╗</text>
       <text x="32" y="61" xml:space="preserve">██╔════╝██╔════╝╚██╗██╔╝╚██╗ ██╔╝██╔══██╗██╔═══██╗██║   ██║╚══██╔══╝██╔════╝██╔══██╗</text>
