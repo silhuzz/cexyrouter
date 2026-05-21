@@ -105,14 +105,36 @@ func (h handler) listCoins(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	routableParam, err := optionalBoolParam(r.URL.Query().Get("routable"), "routable")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_filter", err.Error())
+		return
+	}
+	routable := routableParam != nil && *routableParam
+
 	ctx, cancel := withHandlerTimeout(r)
 	defer cancel()
 
-	rows, err := h.db.Query(ctx, `
+	sql := `
 		SELECT id, slug, symbol, name, external_ids
 		FROM coins
 		ORDER BY slug
-	`)
+	`
+	if routable {
+		sql = `
+			SELECT DISTINCT c.id, c.slug, c.symbol, c.name, c.external_ids
+			FROM rails d
+			JOIN rails w ON w.exchange_id = d.exchange_id AND w.coin_id = d.coin_id
+			JOIN coins c ON c.id = d.coin_id
+			WHERE d.is_active = TRUE
+			  AND w.is_active = TRUE
+			  AND d.deposit_enabled = TRUE
+			  AND w.withdraw_enabled = TRUE
+			ORDER BY c.slug
+		`
+	}
+
+	rows, err := h.db.Query(ctx, sql)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "database_query_failed", "failed to list coins")
 		return

@@ -45,6 +45,7 @@
     { slug: "weth", symbol: "WETH", name: "Wrapped Ether" },
     { slug: "xrp", symbol: "XRP", name: "XRP" },
   ];
+  const FALLBACK_ROUTE_COINS = FALLBACK_COINS.filter((coin) => !["weth", "xrp"].includes(coin.slug));
 
   const FALLBACK_CHAINS = [
     { slug: "ethereum", symbol: "ETH", name: "Ethereum" },
@@ -73,12 +74,12 @@
   const state = {
     exchanges: EXCHANGES,
     coins: FALLBACK_COINS,
+    routeCoins: FALLBACK_ROUTE_COINS,
     chains: FALLBACK_CHAINS,
     rails: [],
     freshness: [],
     events: [],
     routeOptions: null,
-    routeOptionsUsedEquivalentFallback: false,
     eventIds: new Set(),
     lastCursor: null,
     eventFilters: {
@@ -141,9 +142,10 @@
   }
 
   async function loadReferenceData() {
-    const [exchangeResult, coinResult, chainResult] = await Promise.allSettled([
+    const [exchangeResult, coinResult, routeCoinResult, chainResult] = await Promise.allSettled([
       getJSON(ENDPOINTS.exchanges),
       getJSON(ENDPOINTS.coins),
+      getJSON(`${ENDPOINTS.coins}?routable=true`),
       getJSON(ENDPOINTS.chains),
     ]);
 
@@ -160,6 +162,11 @@
         FALLBACK_COINS,
         normalizeReference(coinResult.value, ["coins", "items", "data"], "coin")
       );
+    }
+    if (routeCoinResult.status === "fulfilled") {
+      state.routeCoins = normalizeReference(routeCoinResult.value, ["coins", "items", "data"], "coin");
+    } else {
+      state.routeCoins = FALLBACK_ROUTE_COINS;
     }
     if (chainResult.status === "fulfilled") {
       state.chains = mergeReference(
@@ -497,29 +504,20 @@
     };
   }
 
-  function routeOptionsEmpty(options) {
-    return options.fromChains.length === 0 || options.pairs.length === 0;
-  }
-
   async function refreshRouteOptions(options = {}) {
     const coin = $("#coin-select").value;
     const equivalentInput = $("#equivalent-assets-input");
     const equivalentAssets = equivalentInput.checked;
 
-    try {
-      let routeOptions = normalizeRouteOptionsPayload(await fetchRouteOptions(coin, equivalentAssets));
-      let usedEquivalentFallback = false;
-      if (!equivalentAssets && routeOptionsEmpty(routeOptions)) {
-        const fallbackOptions = normalizeRouteOptionsPayload(await fetchRouteOptions(coin, true));
-        if (!routeOptionsEmpty(fallbackOptions)) {
-          routeOptions = fallbackOptions;
-          usedEquivalentFallback = true;
-          equivalentInput.checked = true;
-        }
-      }
+    if (!coin) {
+      state.routeOptions = { fromChains: [], toChains: [], pairs: [] };
+      applyRouteOptionsToChainSelects();
+      setRouteHint();
+      return;
+    }
 
-      state.routeOptions = routeOptions;
-      state.routeOptionsUsedEquivalentFallback = usedEquivalentFallback;
+    try {
+      state.routeOptions = normalizeRouteOptionsPayload(await fetchRouteOptions(coin, equivalentAssets));
       applyRouteOptionsToChainSelects({
         preferredFrom: coin === "btc" ? "bitcoin" : "",
         preferredTo: coin === "btc" && equivalentInput.checked ? "ethereum" : "",
@@ -529,7 +527,6 @@
       }
     } catch (error) {
       state.routeOptions = null;
-      state.routeOptionsUsedEquivalentFallback = false;
       fillSelect("#from-chain-select", state.chains, $("#from-chain-select").value || "bitcoin", displayChain);
       fillSelect("#to-chain-select", state.chains, $("#to-chain-select").value || "ethereum", displayChain);
       $("#find-route").disabled = false;
@@ -597,10 +594,7 @@
       $("#route-results").innerHTML = `<p class="muted">No open route options for ${escapeHTML(displayCoin(coin))} yet.</p>`;
       return;
     }
-    const mode = state.routeOptionsUsedEquivalentFallback
-      ? `Using equivalent asset rails for ${escapeHTML(displayCoin(coin))}. `
-      : "";
-    $("#route-results").innerHTML = `<p class="muted">${mode}Pick from ${fromCount} valid source chain${fromCount === 1 ? "" : "s"}; destination chains update from live route options.</p>`;
+    $("#route-results").innerHTML = `<p class="muted">Pick from ${fromCount} valid source chain${fromCount === 1 ? "" : "s"} for ${escapeHTML(displayCoin(coin))}; destination chains update from live route options.</p>`;
   }
 
   function scheduleLiveRefresh() {
@@ -669,7 +663,8 @@
   }
 
   function populateRouteForm() {
-    fillSelect("#coin-select", state.coins, "btc", displayCoin);
+    const coins = state.routeCoins;
+    fillSelect("#coin-select", coins, coins.some((coin) => coin.slug === "btc") ? "btc" : coins[0]?.slug || "", displayCoin);
     fillSelect("#from-chain-select", state.chains, "bitcoin", displayChain);
     fillSelect("#to-chain-select", state.chains, "ethereum", displayChain);
     $("#amount-input").value = "0.1";
