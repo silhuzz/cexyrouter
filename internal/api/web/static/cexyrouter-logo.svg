@@ -1,15 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 190" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 164" role="img" aria-labelledby="title desc">
   <title id="title">CexyRouter</title>
   <desc id="desc">Box-drawing ASCII art logo spelling CexyRouter, debossed into the bezel plastic.</desc>
-  <g fill="currentColor" font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="900">
-    <g font-size="17">
-      <text x="32" y="38" xml:space="preserve"> ██████╗███████╗██╗  ██╗██╗   ██╗██████╗  ██████╗ ██╗   ██╗████████╗███████╗██████╗</text>
-      <text x="32" y="61" xml:space="preserve">██╔════╝██╔════╝╚██╗██╔╝╚██╗ ██╔╝██╔══██╗██╔═══██╗██║   ██║╚══██╔══╝██╔════╝██╔══██╗</text>
-      <text x="32" y="84" xml:space="preserve">██║     █████╗   ╚███╔╝  ╚████╔╝ ██████╔╝██║   ██║██║   ██║   ██║   █████╗  ██████╔╝</text>
-      <text x="32" y="107" xml:space="preserve">██║     ██╔══╝   ██╔██╗   ╚██╔╝  ██╔══██╗██║   ██║██║   ██║   ██║   ██╔══╝  ██╔══██╗</text>
-      <text x="32" y="130" xml:space="preserve">╚██████╗███████╗██╔╝ ██╗   ██║   ██║  ██║╚██████╔╝╚██████╔╝   ██║   ███████╗██║  ██║</text>
-      <text x="32" y="153" xml:space="preserve"> ╚═════╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝  ╚═════╝    ╚═╝   ╚══════╝╚═╝  ╚═╝</text>
-    </g>
-    <text x="32" y="174" font-size="14" letter-spacing="0" xml:space="preserve">  ░▒▓█ live CEX rail status · cross-chain routes · push alerts █▓▒░  [SEABW '26]</text>
+  <g fill="currentColor" font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-weight="900" font-size="17">
+    <text x="32" y="38" xml:space="preserve"> ██████╗███████╗██╗  ██╗██╗   ██╗██████╗  ██████╗ ██╗   ██╗████████╗███████╗██████╗</text>
+    <text x="32" y="61" xml:space="preserve">██╔════╝██╔════╝╚██╗██╔╝╚██╗ ██╔╝██╔══██╗██╔═══██╗██║   ██║╚══██╔══╝██╔════╝██╔══██╗</text>
+    <text x="32" y="84" xml:space="preserve">██║     █████╗   ╚███╔╝  ╚████╔╝ ██████╔╝██║   ██║██║   ██║   ██║   █████╗  ██████╔╝</text>
+    <text x="32" y="107" xml:space="preserve">██║     ██╔══╝   ██╔██╗   ╚██╔╝  ██╔══██╗██║   ██║██║   ██║   ██║   ██╔══╝  ██╔══██╗</text>
+    <text x="32" y="130" xml:space="preserve">╚██████╗███████╗██╔╝ ██╗   ██║   ██║  ██║╚██████╔╝╚██████╔╝   ██║   ███████╗██║  ██║</text>
+    <text x="32" y="153" xml:space="preserve"> ╚═════╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝  ╚═════╝    ╚═╝   ╚══════╝╚═╝  ╚═╝</text>
   </g>
 </svg>

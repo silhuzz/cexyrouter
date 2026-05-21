@@ -166,10 +166,8 @@ button {
 .logo-plate {
   display: grid;
   place-items: center;
-  align-content: center;
-  gap: 4px;
   min-width: 0;
-  padding: 10px 18px 8px;
+  padding: 5px 14px;
   text-decoration: none;
   background:
     radial-gradient(ellipse at 50% 120%, rgba(40, 18, 10, 0.22), transparent 65%),
@@ -180,26 +178,29 @@ button {
     inset 0 -3px 0 rgba(0, 0, 0, 0.2),
     inset 0 0 0 1px rgba(40, 18, 10, 0.12),
     0 3px 0 rgba(0, 0, 0, 0.28);
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.logo-plate:hover {
+  filter: brightness(1.06) contrast(1.03);
+  transform: translateY(-1px);
+}
+
+.logo-plate:active {
+  transform: translateY(0px);
+  filter: brightness(0.97);
+  transition-duration: 0.06s;
 }
 
 .brand-logo {
   display: block;
-  width: min(100%, 510px);
-  max-height: 46px;
+  width: min(100%, 540px);
+  max-height: 62px;
   object-fit: contain;
   color: rgba(58, 22, 14, 0.58);
   filter:
     drop-shadow(0 1px 0 rgba(255, 247, 224, 0.78))
     drop-shadow(0 -0.5px 0 rgba(20, 6, 0, 0.22));
-}
-
-.logo-plate span {
-  color: rgba(46, 22, 14, 0.55);
-  font-size: 0.6rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-align: center;
-  text-shadow: 0 1px 0 rgba(255, 247, 224, 0.65);
 }
 
 .freshness-banner.ok {
