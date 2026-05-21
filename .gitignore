@@ -5,6 +5,7 @@
 !.env.example
 *.key
 *.pem
+*.zip
 secrets/
 
 bin/
@@ -13,3 +14,4 @@ tmp/
 dist/
 e2e-smoke
 normalization-audit
+internal/cex router/

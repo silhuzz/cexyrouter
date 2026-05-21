@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pedro/cex-router/pkg/types"
+	"github.com/silhuzz/cexyrouter/pkg/types"
 )
 
 func TestRunOnceHonorsMaxConcurrencyAndKeepsInputOrder(t *testing.T) {

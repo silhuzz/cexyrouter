@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/pedro/cex-router/internal/chains"
-	"github.com/pedro/cex-router/internal/db"
-	"github.com/pedro/cex-router/internal/envfile"
+	"github.com/silhuzz/cexyrouter/internal/chains"
+	"github.com/silhuzz/cexyrouter/internal/db"
+	"github.com/silhuzz/cexyrouter/internal/envfile"
 )
 
 type chainRow struct {

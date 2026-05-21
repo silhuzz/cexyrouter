@@ -11,14 +11,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pedro/cex-router/internal/api"
-	"github.com/pedro/cex-router/internal/api/admin"
-	"github.com/pedro/cex-router/internal/api/rest"
-	"github.com/pedro/cex-router/internal/api/web"
-	"github.com/pedro/cex-router/internal/api/ws"
-	"github.com/pedro/cex-router/internal/config"
-	"github.com/pedro/cex-router/internal/db"
-	"github.com/pedro/cex-router/internal/envfile"
+	"github.com/silhuzz/cexyrouter/internal/api"
+	"github.com/silhuzz/cexyrouter/internal/api/admin"
+	"github.com/silhuzz/cexyrouter/internal/api/rest"
+	"github.com/silhuzz/cexyrouter/internal/api/web"
+	"github.com/silhuzz/cexyrouter/internal/api/ws"
+	"github.com/silhuzz/cexyrouter/internal/config"
+	"github.com/silhuzz/cexyrouter/internal/db"
+	"github.com/silhuzz/cexyrouter/internal/envfile"
 )
 
 func main() {

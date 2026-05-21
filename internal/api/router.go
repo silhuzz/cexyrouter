@@ -10,8 +10,8 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/pedro/cex-router/internal/config"
-	"github.com/pedro/cex-router/internal/db"
+	"github.com/silhuzz/cexyrouter/internal/config"
+	"github.com/silhuzz/cexyrouter/internal/db"
 )
 
 type Deps struct {

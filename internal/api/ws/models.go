@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/pedro/cex-router/internal/api/eventmeta"
+	"github.com/silhuzz/cexyrouter/internal/api/eventmeta"
 )
 
 const (

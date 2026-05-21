@@ -160,6 +160,6 @@ make setup-hooks
 
 ## Credits
 
-Built for a hackathon demo by Pedro.
+Built for a hackathon demo by Tomas.
 
 Co-authored by Codex and Claude.

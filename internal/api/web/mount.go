@@ -8,10 +8,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/pedro/cex-router/internal/api"
+	"github.com/silhuzz/cexyrouter/internal/api"
 )
 
-//go:embed static/index.html static/app.css static/app.js
+//go:embed static/index.html static/app.css static/app.js static/cexyrouter-logo.svg static/favicon.svg
 var staticFiles embed.FS
 
 var _ api.MountFunc = Mount
@@ -32,6 +32,8 @@ func Mount(r chi.Router, _ api.Deps) {
 	r.Get("/index.html", serveStatic)
 	r.Get("/app.css", serveStatic)
 	r.Get("/app.js", serveStatic)
+	r.Get("/cexyrouter-logo.svg", serveStatic)
+	r.Get("/favicon.svg", serveStatic)
 }
 
 func setStaticHeaders(w http.ResponseWriter, path string) {

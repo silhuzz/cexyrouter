@@ -227,7 +227,18 @@ paths:
         - name: event_type
           in: query
           schema:
-            $ref: "#/components/schemas/EventType"
+            type: array
+            items:
+              $ref: "#/components/schemas/EventType"
+          style: form
+          explode: true
+          description: Filter by one or more event types. Repeat the query parameter for multiple values.
+        - name: since
+          in: query
+          schema:
+            type: string
+            example: 24h
+          description: Return events at or after this RFC3339 timestamp or relative duration, such as `24h`.
         - $ref: "#/components/parameters/ExchangeSlugFilter"
         - $ref: "#/components/parameters/CoinSlugFilter"
         - $ref: "#/components/parameters/ChainSlugFilter"

@@ -10,7 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/pedro/cex-router/internal/api"
+	"github.com/silhuzz/cexyrouter/internal/api"
 )
 
 const handlerTimeout = 8 * time.Second

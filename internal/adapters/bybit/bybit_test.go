@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pedro/cex-router/pkg/types"
 	"github.com/shopspring/decimal"
+	"github.com/silhuzz/cexyrouter/pkg/types"
 )
 
 func TestSignedGETRequestUsesByteIdenticalQueryFixture(t *testing.T) {

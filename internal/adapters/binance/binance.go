@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pedro/cex-router/pkg/types"
 	"github.com/shopspring/decimal"
+	"github.com/silhuzz/cexyrouter/pkg/types"
 )
 
 const (

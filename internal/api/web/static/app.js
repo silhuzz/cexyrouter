@@ -12,6 +12,7 @@
   };
 
   const FRESHNESS_STALE_MS = 10 * 60 * 1000;
+  const EVENTS_WINDOW = "24h";
   const AVAILABILITY_EVENT_TYPES = [
     "deposit_off",
     "deposit_on",
@@ -554,7 +555,7 @@
     }
 
     if (visibleEvents.length === 0) {
-      list.innerHTML = `<li class="event-empty">Waiting for matching rail events</li>`;
+      list.innerHTML = `<li class="event-empty">No matching rail events in the last 24h</li>`;
       return;
     }
 
@@ -714,7 +715,7 @@
   }
 
   function eventQueryParams() {
-    const params = new URLSearchParams({ limit: "100" });
+    const params = new URLSearchParams({ limit: "500", since: EVENTS_WINDOW });
     if (state.eventFilters.exchange) {
       params.set("exchange", state.eventFilters.exchange);
     }
@@ -725,8 +726,8 @@
       params.set("chain", state.eventFilters.chain);
     }
     const selectedTypes = eventTypeFilterValues();
-    if (selectedTypes.length === 1) {
-      params.set("event_type", selectedTypes[0]);
+    for (const type of selectedTypes) {
+      params.append("event_type", type);
     }
     return params;
   }

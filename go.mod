@@ -1,4 +1,4 @@
-module github.com/pedro/cex-router
+module github.com/silhuzz/cexyrouter
 
 go 1.26.3
 

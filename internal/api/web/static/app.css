@@ -62,6 +62,19 @@ button {
   padding: 6px 0 18px;
 }
 
+.brand-lockup {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.brand-logo {
+  display: block;
+  width: min(590px, 74vw);
+  height: auto;
+  filter: drop-shadow(0 10px 22px rgba(36, 87, 214, 0.12));
+}
+
 .topbar h1,
 .panel h2 {
   margin: 0;
@@ -557,6 +570,10 @@ button {
 
   .topbar h1 {
     font-size: 1.65rem;
+  }
+
+  .brand-logo {
+    width: min(100%, 430px);
   }
 
   .panel-head {

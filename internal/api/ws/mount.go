@@ -11,7 +11,7 @@ import (
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
 
-	"github.com/pedro/cex-router/internal/api"
+	"github.com/silhuzz/cexyrouter/internal/api"
 )
 
 func Mount(r chi.Router, deps api.Deps) {

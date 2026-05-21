@@ -14,10 +14,10 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/pedro/cex-router/internal/diff"
-	"github.com/pedro/cex-router/internal/normalizer"
-	"github.com/pedro/cex-router/pkg/types"
 	"github.com/shopspring/decimal"
+	"github.com/silhuzz/cexyrouter/internal/diff"
+	"github.com/silhuzz/cexyrouter/internal/normalizer"
+	"github.com/silhuzz/cexyrouter/pkg/types"
 )
 
 type Runner struct {

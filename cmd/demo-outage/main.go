@@ -12,8 +12,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/pedro/cex-router/internal/db"
-	"github.com/pedro/cex-router/internal/envfile"
+	"github.com/silhuzz/cexyrouter/internal/db"
+	"github.com/silhuzz/cexyrouter/internal/envfile"
 )
 
 type targetRail struct {

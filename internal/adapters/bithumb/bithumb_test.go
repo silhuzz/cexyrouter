@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pedro/cex-router/pkg/types"
 	"github.com/shopspring/decimal"
+	"github.com/silhuzz/cexyrouter/pkg/types"
 )
 
 func TestFetchRailsUsesFixtures(t *testing.T) {

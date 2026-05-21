@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/pedro/cex-router/internal/api"
+	"github.com/silhuzz/cexyrouter/internal/api"
 )
 
 func TestMountServesEmbeddedStaticAssets(t *testing.T) {
@@ -21,9 +21,11 @@ func TestMountServesEmbeddedStaticAssets(t *testing.T) {
 		contentType string
 		body        string
 	}{
-		{path: "/", status: http.StatusOK, contentType: "text/html", body: "CEX Router"},
+		{path: "/", status: http.StatusOK, contentType: "text/html", body: "CexyRouter"},
 		{path: "/app.css", status: http.StatusOK, contentType: "text/css", body: "--bg"},
 		{path: "/app.js", status: http.StatusOK, contentType: "javascript", body: "/v1/route-options"},
+		{path: "/cexyrouter-logo.svg", status: http.StatusOK, contentType: "image/svg+xml", body: "CexyRouter"},
+		{path: "/favicon.svg", status: http.StatusOK, contentType: "image/svg+xml", body: "C&gt;"},
 	}
 
 	for _, tt := range tests {

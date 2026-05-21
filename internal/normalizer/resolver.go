@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pedro/cex-router/internal/chains"
-	"github.com/pedro/cex-router/pkg/types"
+	"github.com/silhuzz/cexyrouter/internal/chains"
+	"github.com/silhuzz/cexyrouter/pkg/types"
 )
 
 var (

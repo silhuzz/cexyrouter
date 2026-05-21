@@ -45,6 +45,50 @@ func TestEventsCursorRoundTrip(t *testing.T) {
 	}
 }
 
+func TestParseSinceDuration(t *testing.T) {
+	now := time.Date(2026, 5, 21, 12, 0, 0, 0, time.UTC)
+	since, err := parseSince("24h", now)
+	if err != nil {
+		t.Fatalf("parse since: %v", err)
+	}
+	want := time.Date(2026, 5, 20, 12, 0, 0, 0, time.UTC)
+	if !since.Equal(want) {
+		t.Fatalf("since = %s, want %s", since, want)
+	}
+}
+
+func TestParseSinceTimestamp(t *testing.T) {
+	since, err := parseSince("2026-05-21T04:26:35Z", time.Now())
+	if err != nil {
+		t.Fatalf("parse since: %v", err)
+	}
+	want := time.Date(2026, 5, 21, 4, 26, 35, 0, time.UTC)
+	if !since.Equal(want) {
+		t.Fatalf("since = %s, want %s", since, want)
+	}
+}
+
+func TestParseSinceRejectsInvalidValue(t *testing.T) {
+	if _, err := parseSince("yesterday", time.Now()); err == nil {
+		t.Fatal("parse since error = nil, want error")
+	}
+}
+
+func TestQueryValuesAcceptsRepeatedAndCommaSeparatedValues(t *testing.T) {
+	values := queryValues(map[string][]string{
+		"event_type": {"deposit_off, deposit_on", "withdraw_off", "deposit_off"},
+	}, "event_type")
+	want := []string{"deposit_off", "deposit_on", "withdraw_off"}
+	if len(values) != len(want) {
+		t.Fatalf("values = %#v, want %#v", values, want)
+	}
+	for i := range want {
+		if values[i] != want[i] {
+			t.Fatalf("values = %#v, want %#v", values, want)
+		}
+	}
+}
+
 func TestEstimateWithdrawFee(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -96,6 +140,37 @@ func TestEstimateWithdrawFee(t *testing.T) {
 				t.Fatalf("fee = %s, want %s", actual.String(), tt.expected)
 			}
 		})
+	}
+}
+
+func TestRouteFeeEstimateMarksMissingFeeMetadataUnknown(t *testing.T) {
+	label, fee, known, err := routeFeeEstimate(rail{}, decimal.Zero, false)
+	if err != nil {
+		t.Fatalf("route fee estimate: %v", err)
+	}
+	if known {
+		t.Fatal("fee known = true, want false")
+	}
+	if label != "n/a" {
+		t.Fatalf("label = %q, want n/a", label)
+	}
+	if !fee.IsZero() {
+		t.Fatalf("fee = %s, want zero sort value", fee)
+	}
+}
+
+func TestRouteFeeEstimateUsesKnownFixedFeeWithoutFeeType(t *testing.T) {
+	label, fee, known, err := routeFeeEstimate(rail{
+		WithdrawFee: strPtr("0.52"),
+	}, decimal.Zero, false)
+	if err != nil {
+		t.Fatalf("route fee estimate: %v", err)
+	}
+	if !known {
+		t.Fatal("fee known = false, want true")
+	}
+	if label != "0.52" || fee.String() != "0.52" {
+		t.Fatalf("estimate = (%q, %s), want 0.52", label, fee)
 	}
 }
 

@@ -15,8 +15,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 
-	"github.com/pedro/cex-router/internal/api"
-	"github.com/pedro/cex-router/internal/api/eventmeta"
+	"github.com/silhuzz/cexyrouter/internal/api"
+	"github.com/silhuzz/cexyrouter/internal/api/eventmeta"
 )
 
 const (
@@ -339,7 +339,6 @@ func (h handler) listRoutes(w http.ResponseWriter, r *http.Request) {
 		  AND w.is_active = TRUE
 		  AND d.deposit_enabled = TRUE
 		  AND w.withdraw_enabled = TRUE
-		  AND w.withdraw_fee_type IS NOT NULL
 	`,
 		railSelectColumns("d", "e", "deposit_coin", "from_chain"),
 		railSelectColumns("w", "e", "withdraw_coin", "to_chain"),
@@ -377,7 +376,7 @@ func (h handler) listRoutes(w http.ResponseWriter, r *http.Request) {
 			requiresAmount = true
 		}
 
-		totalFee, err := estimateWithdrawFee(withdrawRail, amount, amountProvided)
+		totalFeeEstimate, totalFee, feeKnown, err := routeFeeEstimate(withdrawRail, amount, amountProvided)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "fee_estimate_failed", "failed to estimate route fee")
 			return
@@ -398,10 +397,11 @@ func (h handler) listRoutes(w http.ResponseWriter, r *http.Request) {
 			ToChain:          withdrawRail.Chain,
 			DepositRail:      depositRail,
 			WithdrawRail:     withdrawRail,
-			TotalFeeEstimate: totalFee.String(),
+			TotalFeeEstimate: totalFeeEstimate,
 			EquivalentAsset:  equivalentAsset,
 			RouteKind:        routeKind,
 			totalFee:         totalFee,
+			feeKnown:         feeKnown,
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -414,6 +414,9 @@ func (h handler) listRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sort.SliceStable(routes, func(i, j int) bool {
+		if routes[i].feeKnown != routes[j].feeKnown {
+			return routes[i].feeKnown
+		}
 		if cmp := routes[i].totalFee.Cmp(routes[j].totalFee); cmp != 0 {
 			return cmp < 0
 		}
@@ -471,7 +474,6 @@ func (h handler) listRouteOptions(w http.ResponseWriter, r *http.Request) {
 		  AND w.is_active = TRUE
 		  AND d.deposit_enabled = TRUE
 		  AND w.withdraw_enabled = TRUE
-		  AND w.withdraw_fee_type IS NOT NULL
 		ORDER BY from_chain.slug, to_chain.slug
 	`, coinJoinCondition)
 
@@ -577,8 +579,8 @@ func (h handler) listEvents(w http.ResponseWriter, r *http.Request) {
 		clauses = append(clauses, fmt.Sprintf(sql, len(args)))
 	}
 
-	if eventType := strings.TrimSpace(query.Get("event_type")); eventType != "" {
-		addFilter("re.event_type = $%d", eventType)
+	if eventTypes := queryValues(query, "event_type"); len(eventTypes) > 0 {
+		addFilter("re.event_type = ANY($%d::text[])", eventTypes)
 	}
 	if exchange := strings.TrimSpace(query.Get("exchange")); exchange != "" {
 		addFilter("e.slug = $%d", exchange)
@@ -588,6 +590,14 @@ func (h handler) listEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	if chain := strings.TrimSpace(query.Get("chain")); chain != "" {
 		addFilter("ch.slug = $%d", chain)
+	}
+	if rawSince := strings.TrimSpace(query.Get("since")); rawSince != "" {
+		since, err := parseSince(rawSince, time.Now().UTC())
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_since", err.Error())
+			return
+		}
+		addFilter("re.occurred_at >= $%d", since)
 	}
 	if rawCursor := strings.TrimSpace(query.Get("cursor")); rawCursor != "" {
 		cursor, err := decodeEventsCursor(rawCursor)
@@ -738,6 +748,44 @@ func parseLimit(r *http.Request, defaultLimit int, maxLimit int) (int, error) {
 		return 0, fmt.Errorf("limit must be at most %d", maxLimit)
 	}
 	return limit, nil
+}
+
+func parseSince(raw string, now time.Time) (time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, fmt.Errorf("since is required")
+	}
+	if parsed, err := time.Parse(time.RFC3339, raw); err == nil {
+		return parsed.UTC(), nil
+	}
+	duration, err := time.ParseDuration(raw)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("since must be an RFC3339 timestamp or duration like 24h")
+	}
+	if duration <= 0 {
+		return time.Time{}, fmt.Errorf("since duration must be greater than zero")
+	}
+	return now.Add(-duration).UTC(), nil
+}
+
+func queryValues(query map[string][]string, key string) []string {
+	rawValues := query[key]
+	values := make([]string, 0, len(rawValues))
+	seen := make(map[string]struct{}, len(rawValues))
+	for _, raw := range rawValues {
+		for _, part := range strings.Split(raw, ",") {
+			value := strings.TrimSpace(part)
+			if value == "" {
+				continue
+			}
+			if _, exists := seen[value]; exists {
+				continue
+			}
+			seen[value] = struct{}{}
+			values = append(values, value)
+		}
+	}
+	return values
 }
 
 func optionalBoolParam(raw string, name string) (*bool, error) {
@@ -950,6 +998,37 @@ func estimateWithdrawFee(item rail, amount decimal.Decimal, amountProvided bool)
 	default:
 		return fixed, nil
 	}
+}
+
+func routeFeeEstimate(item rail, amount decimal.Decimal, amountProvided bool) (string, decimal.Decimal, bool, error) {
+	if !withdrawFeeEstimateKnown(item) {
+		return "n/a", decimal.Zero, false, nil
+	}
+	totalFee, err := estimateWithdrawFee(item, amount, amountProvided)
+	if err != nil {
+		return "", decimal.Zero, false, err
+	}
+	return totalFee.String(), totalFee, true, nil
+}
+
+func withdrawFeeEstimateKnown(item rail) bool {
+	feeType := ""
+	if item.WithdrawFeeType != nil {
+		feeType = strings.ToLower(strings.TrimSpace(*item.WithdrawFeeType))
+	}
+
+	switch feeType {
+	case "percent":
+		return optionalStringHasValue(item.WithdrawFeePercent)
+	case "hybrid":
+		return optionalStringHasValue(item.WithdrawFee) || optionalStringHasValue(item.WithdrawFeePercent)
+	default:
+		return optionalStringHasValue(item.WithdrawFee)
+	}
+}
+
+func optionalStringHasValue(value *string) bool {
+	return value != nil && strings.TrimSpace(*value) != ""
 }
 
 func decimalFromOptionalString(raw *string) (decimal.Decimal, error) {

@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/pedro/cex-router/internal/api"
-	"github.com/pedro/cex-router/internal/config"
+	"github.com/silhuzz/cexyrouter/internal/api"
+	"github.com/silhuzz/cexyrouter/internal/config"
 )
 
 func TestMountRequiresWebSocketUpgrade(t *testing.T) {

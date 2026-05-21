@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/pedro/cex-router/internal/api/eventmeta"
 	"github.com/shopspring/decimal"
+	"github.com/silhuzz/cexyrouter/internal/api/eventmeta"
 )
 
 type exchangeRef struct {
@@ -73,6 +73,7 @@ type route struct {
 	RouteKind        string      `json:"route_kind"`
 
 	totalFee decimal.Decimal
+	feeKnown bool
 }
 
 type routeOptions struct {

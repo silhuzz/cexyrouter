@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CexyRouter">
+  <rect width="64" height="64" rx="14" fill="#2457d6"/>
+  <text x="9" y="28" fill="#ffffff" font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="18" font-weight="900">C&gt;</text>
+  <text x="9" y="48" fill="#d9e6ff" font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="18" font-weight="900">R_</text>
+</svg>

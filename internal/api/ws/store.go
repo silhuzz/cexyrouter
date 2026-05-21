@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/pedro/cex-router/internal/api/eventmeta"
+	"github.com/silhuzz/cexyrouter/internal/api/eventmeta"
 )
 
 type EventLookup interface {

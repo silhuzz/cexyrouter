@@ -4,8 +4,10 @@
 .DS_Store
 .git
 .githooks
+*.zip
 normalization-audit
 e2e-smoke
 tmp
 dist
 coverage.out
+internal/cex router

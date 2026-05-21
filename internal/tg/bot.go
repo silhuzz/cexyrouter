@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pedro/cex-router/internal/tg/commands"
+	"github.com/silhuzz/cexyrouter/internal/tg/commands"
 )
 
 const telegramAPIEndpoint = "https://api.telegram.org"

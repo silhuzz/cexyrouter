@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pedro/cex-router/pkg/types"
 	"github.com/shopspring/decimal"
+	"github.com/silhuzz/cexyrouter/pkg/types"
 )
 
 var fixedNow = time.Date(2026, 5, 20, 14, 30, 1, 234000000, time.UTC)

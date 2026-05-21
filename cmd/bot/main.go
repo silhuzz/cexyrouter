@@ -8,12 +8,12 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/pedro/cex-router/internal/config"
-	"github.com/pedro/cex-router/internal/db"
-	"github.com/pedro/cex-router/internal/envfile"
-	"github.com/pedro/cex-router/internal/tg"
-	"github.com/pedro/cex-router/internal/tg/commands"
-	"github.com/pedro/cex-router/internal/tg/dispatch"
+	"github.com/silhuzz/cexyrouter/internal/config"
+	"github.com/silhuzz/cexyrouter/internal/db"
+	"github.com/silhuzz/cexyrouter/internal/envfile"
+	"github.com/silhuzz/cexyrouter/internal/tg"
+	"github.com/silhuzz/cexyrouter/internal/tg/commands"
+	"github.com/silhuzz/cexyrouter/internal/tg/dispatch"
 )
 
 func main() {
