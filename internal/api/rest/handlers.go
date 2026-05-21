@@ -322,17 +322,19 @@ func (h handler) listRoutes(w http.ResponseWriter, r *http.Request) {
 	equivalentAssets := equivalentAssetsParam != nil && *equivalentAssetsParam
 
 	coinJoinCondition := routeCoinJoinCondition(equivalentAssets)
+	selectedCoinCondition := routeSelectedCoinCondition(equivalentAssets)
 
 	sql := fmt.Sprintf(`
-		SELECT %s, %s
+		SELECT %s, %s, (selected_coin.id <> deposit_coin.id OR deposit_coin.id <> withdraw_coin.id)
 		FROM rails d
+		JOIN coins selected_coin ON selected_coin.slug = $1
 		JOIN rails w ON %s
 		JOIN exchanges e ON e.id = d.exchange_id
 		JOIN coins deposit_coin ON deposit_coin.id = d.coin_id
 		JOIN coins withdraw_coin ON withdraw_coin.id = w.coin_id
 		JOIN chains from_chain ON from_chain.id = d.chain_id
 		JOIN chains to_chain ON to_chain.id = w.chain_id
-		WHERE deposit_coin.slug = $1
+		WHERE %s
 		  AND %s
 		  AND %s
 		  AND d.is_active = TRUE
@@ -343,6 +345,7 @@ func (h handler) listRoutes(w http.ResponseWriter, r *http.Request) {
 		railSelectColumns("d", "e", "deposit_coin", "from_chain"),
 		railSelectColumns("w", "e", "withdraw_coin", "to_chain"),
 		coinJoinCondition,
+		selectedCoinCondition,
 		chainLookupCondition("from_chain", "$2"),
 		chainLookupCondition("to_chain", "$3"),
 	)
@@ -362,9 +365,11 @@ func (h handler) listRoutes(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var depositRail rail
 		var withdrawRail rail
+		var selectedEquivalentAsset bool
 		depositNullable := railNullable{}
 		withdrawNullable := railNullable{}
 		dest := append(railScanDest(&depositRail, &depositNullable), railScanDest(&withdrawRail, &withdrawNullable)...)
+		dest = append(dest, &selectedEquivalentAsset)
 		if err := rows.Scan(dest...); err != nil {
 			writeError(w, http.StatusInternalServerError, "database_scan_failed", "failed to read routes")
 			return
@@ -382,7 +387,7 @@ func (h handler) listRoutes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		equivalentAsset := depositRail.Coin.ID != withdrawRail.Coin.ID
+		equivalentAsset := selectedEquivalentAsset || depositRail.Coin.ID != withdrawRail.Coin.ID
 		routeKind := "same_asset"
 		if equivalentAsset {
 			routeKind = "equivalent_asset"
@@ -446,12 +451,13 @@ func (h handler) listRouteOptions(w http.ResponseWriter, r *http.Request) {
 	equivalentAssets := equivalentAssetsParam != nil && *equivalentAssetsParam
 
 	coinJoinCondition := routeCoinJoinCondition(equivalentAssets)
+	selectedCoinCondition := routeSelectedCoinCondition(equivalentAssets)
 	sql := fmt.Sprintf(`
 		SELECT DISTINCT
-		       deposit_coin.id,
-		       deposit_coin.slug,
-		       deposit_coin.symbol,
-		       deposit_coin.name,
+		       selected_coin.id,
+		       selected_coin.slug,
+		       selected_coin.symbol,
+		       selected_coin.name,
 		       from_chain.id,
 		       from_chain.slug,
 		       from_chain.symbol,
@@ -465,17 +471,18 @@ func (h handler) listRouteOptions(w http.ResponseWriter, r *http.Request) {
 		       to_chain.evm_chain_id,
 		       to_chain.parent_chain_id
 		FROM rails d
+		JOIN coins selected_coin ON selected_coin.slug = $1
 		JOIN rails w ON %s
 		JOIN coins deposit_coin ON deposit_coin.id = d.coin_id
 		JOIN chains from_chain ON from_chain.id = d.chain_id
 		JOIN chains to_chain ON to_chain.id = w.chain_id
-		WHERE deposit_coin.slug = $1
+		WHERE %s
 		  AND d.is_active = TRUE
 		  AND w.is_active = TRUE
 		  AND d.deposit_enabled = TRUE
 		  AND w.withdraw_enabled = TRUE
 		ORDER BY from_chain.slug, to_chain.slug
-	`, coinJoinCondition)
+	`, coinJoinCondition, selectedCoinCondition)
 
 	ctx, cancel := withHandlerTimeout(r)
 	defer cancel()
@@ -815,6 +822,25 @@ func routeCoinJoinCondition(equivalentAssets bool) string {
 				  ON withdraw_member.family_id = deposit_member.family_id
 				WHERE deposit_member.coin_id = d.coin_id
 				  AND withdraw_member.coin_id = w.coin_id
+			)
+		)
+	`
+}
+
+func routeSelectedCoinCondition(equivalentAssets bool) string {
+	if !equivalentAssets {
+		return "deposit_coin.id = selected_coin.id"
+	}
+	return `
+		(
+			deposit_coin.id = selected_coin.id
+			OR EXISTS (
+				SELECT 1
+				FROM asset_family_members selected_member
+				JOIN asset_family_members deposit_member
+				  ON deposit_member.family_id = selected_member.family_id
+				WHERE selected_member.coin_id = selected_coin.id
+				  AND deposit_member.coin_id = deposit_coin.id
 			)
 		)
 	`

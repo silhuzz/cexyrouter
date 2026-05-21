@@ -78,6 +78,7 @@
     freshness: [],
     events: [],
     routeOptions: null,
+    routeOptionsUsedEquivalentFallback: false,
     eventIds: new Set(),
     lastCursor: null,
     eventFilters: {
@@ -470,30 +471,55 @@
     return pickArray(payload, ["routes", "items", "data"]);
   }
 
-  async function refreshRouteOptions(options = {}) {
-    const coin = $("#coin-select").value;
-    const equivalentAssets = $("#equivalent-assets-input").checked;
+  async function fetchRouteOptions(coin, equivalentAssets) {
     const params = new URLSearchParams({ coin });
     if (equivalentAssets) {
       params.set("equivalent_assets", "true");
     }
+    return getJSON(`${ENDPOINTS.routeOptions}?${params.toString()}`);
+  }
+
+  function normalizeRouteOptionsPayload(payload) {
+    return {
+      fromChains: normalizeRouteOptionChains(payload, ["from_chains", "fromChains"]),
+      toChains: normalizeRouteOptionChains(payload, ["to_chains", "toChains"]),
+      pairs: normalizeRouteOptionPairs(payload),
+    };
+  }
+
+  function routeOptionsEmpty(options) {
+    return options.fromChains.length === 0 || options.pairs.length === 0;
+  }
+
+  async function refreshRouteOptions(options = {}) {
+    const coin = $("#coin-select").value;
+    const equivalentInput = $("#equivalent-assets-input");
+    const equivalentAssets = equivalentInput.checked;
 
     try {
-      const payload = await getJSON(`${ENDPOINTS.routeOptions}?${params.toString()}`);
-      state.routeOptions = {
-        fromChains: normalizeRouteOptionChains(payload, ["from_chains", "fromChains"]),
-        toChains: normalizeRouteOptionChains(payload, ["to_chains", "toChains"]),
-        pairs: normalizeRouteOptionPairs(payload),
-      };
+      let routeOptions = normalizeRouteOptionsPayload(await fetchRouteOptions(coin, equivalentAssets));
+      let usedEquivalentFallback = false;
+      if (!equivalentAssets && routeOptionsEmpty(routeOptions)) {
+        const fallbackOptions = normalizeRouteOptionsPayload(await fetchRouteOptions(coin, true));
+        if (!routeOptionsEmpty(fallbackOptions)) {
+          routeOptions = fallbackOptions;
+          usedEquivalentFallback = true;
+          equivalentInput.checked = true;
+        }
+      }
+
+      state.routeOptions = routeOptions;
+      state.routeOptionsUsedEquivalentFallback = usedEquivalentFallback;
       applyRouteOptionsToChainSelects({
         preferredFrom: coin === "btc" ? "bitcoin" : "",
-        preferredTo: coin === "btc" && equivalentAssets ? "ethereum" : "",
+        preferredTo: coin === "btc" && equivalentInput.checked ? "ethereum" : "",
       });
       if (!state.routeResultsVisible || options.initial) {
         setRouteHint();
       }
     } catch (error) {
       state.routeOptions = null;
+      state.routeOptionsUsedEquivalentFallback = false;
       fillSelect("#from-chain-select", state.chains, $("#from-chain-select").value || "bitcoin", displayChain);
       fillSelect("#to-chain-select", state.chains, $("#to-chain-select").value || "ethereum", displayChain);
       $("#find-route").disabled = false;
@@ -561,7 +587,10 @@
       $("#route-results").innerHTML = `<p class="muted">No open route options for ${escapeHTML(displayCoin(coin))} yet.</p>`;
       return;
     }
-    $("#route-results").innerHTML = `<p class="muted">Pick from ${fromCount} valid source chain${fromCount === 1 ? "" : "s"} for ${escapeHTML(displayCoin(coin))}; destination chains update from live route options.</p>`;
+    const mode = state.routeOptionsUsedEquivalentFallback
+      ? `Using equivalent asset rails for ${escapeHTML(displayCoin(coin))}. `
+      : "";
+    $("#route-results").innerHTML = `<p class="muted">${mode}Pick from ${fromCount} valid source chain${fromCount === 1 ? "" : "s"}; destination chains update from live route options.</p>`;
   }
 
   function scheduleLiveRefresh() {
