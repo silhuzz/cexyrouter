@@ -10,7 +10,7 @@ DEMO_OUTAGE_DURATION ?= 8s
 
 .PHONY: build
 build:
-	$(GOENV) go build ./cmd/api ./cmd/ingester ./cmd/bot ./cmd/migrate ./cmd/smoke-adapters ./cmd/e2e-smoke ./cmd/normalization-audit ./cmd/alias-audit ./cmd/demo-outage
+	$(GOENV) go build ./cmd/api ./cmd/ingester ./cmd/bot ./cmd/migrate ./cmd/smoke-adapters ./cmd/e2e-smoke ./cmd/normalization-audit ./cmd/alias-audit ./cmd/route-audit ./cmd/demo-outage
 
 .PHONY: test
 test:
@@ -66,6 +66,10 @@ normalization-audit:
 .PHONY: alias-audit
 alias-audit:
 	$(GOENV) go run ./cmd/alias-audit -env .env
+
+.PHONY: route-audit
+route-audit:
+	$(GOENV) go run ./cmd/route-audit -env .env
 
 .PHONY: demo
 demo:

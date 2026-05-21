@@ -22,7 +22,7 @@ func TestMountServesEmbeddedStaticAssets(t *testing.T) {
 		body        string
 	}{
 		{path: "/", status: http.StatusOK, contentType: "text/html", body: "CexyRouter"},
-		{path: "/app.css", status: http.StatusOK, contentType: "text/css", body: "--bg"},
+		{path: "/app.css", status: http.StatusOK, contentType: "text/css", body: "--shell"},
 		{path: "/app.js", status: http.StatusOK, contentType: "javascript", body: "/v1/route-options"},
 		{path: "/cexyrouter-logo.svg", status: http.StatusOK, contentType: "image/svg+xml", body: "CexyRouter"},
 		{path: "/favicon.svg", status: http.StatusOK, contentType: "image/svg+xml", body: "C&gt;"},

@@ -15,6 +15,14 @@ CEXYROUTER monitors centralized exchange deposit and withdrawal rails, normalize
 
 The hackathon demo path is built around three visible moments: live route availability, controlled route status changes, and Telegram alerts that users can filter by exchange, token, and chain.
 
+<p align="center">
+  <img src="docs/images/telegram-1-exchanges.png" alt="Telegram alert setup, step 1 of 3: choose exchanges" width="32%" />
+  <img src="docs/images/telegram-2-coverage.png" alt="Telegram alert setup, step 2 of 3: choose coverage" width="32%" />
+  <img src="docs/images/telegram-3-saved.png" alt="Telegram alert setup, saved rules confirmation" width="32%" />
+</p>
+
+<p align="center"><em>Three taps from <code>/start</code> to a live rail-status alert: pick exchanges → pick coverage → confirm.</em></p>
+
 ## What It Does
 
 - Ingests CEX rail metadata from exchange APIs.
@@ -31,7 +39,7 @@ The hackathon demo path is built around three visible moments: live route availa
 - `cmd/bot`: Telegram command UI and alert dispatcher.
 - `cmd/migrate`: database migrations.
 - `cmd/demo-outage`: controlled outage/recovery event for demos.
-- `cmd/smoke-adapters`, `cmd/e2e-smoke`, `cmd/normalization-audit`, `cmd/alias-audit`: verification tools.
+- `cmd/smoke-adapters`, `cmd/e2e-smoke`, `cmd/normalization-audit`, `cmd/alias-audit`, `cmd/route-audit`: verification tools.
 
 ## Quick Start
 
@@ -69,6 +77,7 @@ make test
 make build
 make smoke-adapters
 make normalization-audit
+make route-audit
 make demo-outage
 make dev-bot
 ```

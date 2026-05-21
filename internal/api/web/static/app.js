@@ -84,7 +84,7 @@
       exchange: "",
       coin: "",
       chain: "",
-      kind: "availability",
+      kind: "all",
     },
     ws: null,
     reconnectTimer: null,
@@ -120,6 +120,8 @@
       });
     });
 
+    renderClock();
+    window.setInterval(renderClock, 1000);
     bootstrap();
   });
 
@@ -326,6 +328,7 @@
     if (error) {
       head.innerHTML = "";
       body.innerHTML = `<tr><td class="loading-cell">Rails endpoint unavailable: ${escapeHTML(error.message)}</td></tr>`;
+      renderRailStats(error);
       return;
     }
 
@@ -335,6 +338,39 @@
       const cells = pairs.map((pair) => renderRailCell(exchange.slug, pair)).join("");
       return `<tr><td class="exchange-cell">${escapeHTML(exchange.name)}</td>${cells}</tr>`;
     }).join("");
+    renderRailStats();
+  }
+
+  function renderRailStats(error) {
+    const total = $("#rails-total-count");
+    const open = $("#rails-open-count");
+    const degraded = $("#rails-degraded-count");
+    if (!total || !open || !degraded) {
+      return;
+    }
+    if (error) {
+      total.textContent = "--";
+      open.textContent = "--";
+      degraded.textContent = "--";
+      return;
+    }
+
+    const counts = state.rails.reduce((acc, rail) => {
+      acc.total += 1;
+      const active = boolField(rail, ["is_active", "isActive"], true);
+      const deposit = boolField(rail, ["deposit_enabled", "depositEnabled"], false);
+      const withdraw = boolField(rail, ["withdraw_enabled", "withdrawEnabled"], false);
+      if (active && deposit && withdraw) {
+        acc.open += 1;
+      } else if (active && (deposit || withdraw)) {
+        acc.degraded += 1;
+      }
+      return acc;
+    }, { total: 0, open: 0, degraded: 0 });
+
+    total.textContent = String(counts.total);
+    open.textContent = String(counts.open);
+    degraded.textContent = String(counts.degraded);
   }
 
   function renderRailCell(exchange, pair) {
@@ -399,13 +435,13 @@
       const seen = [depositLast, withdrawLast].filter(Boolean).map(relativeTime).join(" / ");
 
       return `
-        <article class="route-item">
+        <article class="route-item${index === 0 ? " best" : ""}">
           <div class="route-title">
-            <strong>#${index + 1} ${escapeHTML(displayExchange(exchange))}</strong>
+            <strong>${index === 0 ? "BEST" : `#${index + 1}`} ${escapeHTML(displayExchange(exchange))}</strong>
             ${equivalentAsset ? `<span class="route-badge">Equivalent</span>` : ""}
           </div>
           <div class="route-meta">${escapeHTML(displayCoin(fromCoin))} / ${escapeHTML(displayChain(fromChain))} deposit -> ${escapeHTML(displayCoin(toCoin))} / ${escapeHTML(displayChain(toChain))} withdrawal</div>
-          <div class="route-meta">Estimated fee: ${escapeHTML(String(fee))}${seen ? ` | Seen ${escapeHTML(seen)}` : ""}</div>
+          <div class="route-meta route-fee">Estimated fee ${escapeHTML(String(fee))}${seen ? ` | Seen ${escapeHTML(seen)}` : ""}</div>
         </article>
       `;
     }).join("");
@@ -604,7 +640,18 @@
     fillSelectWithAll("#event-exchange-filter", state.exchanges, "All exchanges", displayExchange);
     fillSelectWithAll("#event-coin-filter", state.coins, "All coins", displayCoin);
     fillSelectWithAll("#event-chain-filter", state.chains, "All chains", displayChain);
-    $("#event-kind-filter").value = "availability";
+    $("#event-kind-filter").value = "all";
+  }
+
+  function renderClock() {
+    const element = $("#current-clock");
+    if (!element) {
+      return;
+    }
+    const now = new Date();
+    element.textContent = [now.getHours(), now.getMinutes(), now.getSeconds()]
+      .map((value) => String(value).padStart(2, "0"))
+      .join(":");
   }
 
   function fillSelect(selector, items, preferred, formatter) {

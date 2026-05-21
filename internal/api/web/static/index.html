@@ -4,137 +4,156 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CexyRouter</title>
-    <meta name="theme-color" content="#2457d6">
-    <meta property="og:title" content="CexyRouter live rail monitor">
+    <meta name="theme-color" content="#9f1617">
+    <meta property="og:title" content="CexyRouter live rail console">
     <meta property="og:description" content="Live exchange rail status, route finding, and Telegram alerts.">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="preload" href="/cexyrouter-logo.svg?v=20260521-onepager" as="image" type="image/svg+xml">
-    <link rel="stylesheet" href="/app.css?v=20260521-onepager-logo">
-    <script defer src="/app.js?v=20260521-24h-events"></script>
+    <link rel="preload" href="/cexyrouter-logo.svg?v=20260521-console" as="image" type="image/svg+xml">
+    <link rel="stylesheet" href="/app.css?v=20260521-console">
+    <script defer src="/app.js?v=20260521-console"></script>
   </head>
   <body>
-    <main class="shell">
-      <header class="topbar">
-        <div class="brand-lockup">
-          <img class="brand-logo" src="/cexyrouter-logo.svg?v=20260521-onepager" alt="CexyRouter">
-          <h1>Live rail monitor</h1>
-        </div>
-        <div class="service-strip" aria-live="polite">
-          <span id="api-status" class="pill neutral">REST syncing</span>
-          <span id="ws-status" class="pill neutral">WS connecting</span>
-        </div>
-      </header>
-
-      <section id="freshness-banner" class="freshness-banner neutral" aria-live="polite">
-        <div>
-          <strong>Freshness</strong>
-          <span id="freshness-summary">Checking adapter health</span>
-        </div>
-        <div id="freshness-chips" class="chip-row"></div>
-      </section>
-
-      <section class="dashboard-grid">
-        <section class="panel board-panel" aria-labelledby="status-board-title">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Rails</p>
-              <h2 id="status-board-title">Status board</h2>
+    <main class="stage">
+      <section class="device" aria-label="CexyRouter live rail console">
+        <header class="device-top">
+          <section class="top-module system-module" aria-label="System status">
+            <div class="module-kicker">System</div>
+            <div class="service-strip" aria-live="polite">
+              <span id="api-status" class="pill neutral">REST syncing</span>
+              <span id="ws-status" class="pill neutral">WS connecting</span>
             </div>
-            <button id="refresh-board" class="ghost-button" type="button">Refresh</button>
-          </div>
-          <div class="table-wrap">
-            <table class="status-table">
-              <thead id="status-head"></thead>
-              <tbody id="status-body">
-                <tr>
-                  <td class="loading-cell">Loading rails</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="panel route-panel" aria-labelledby="route-finder-title">
-          <div class="panel-head compact">
-            <div>
-              <p class="eyebrow">Routes</p>
-              <h2 id="route-finder-title">Route finder</h2>
+            <div class="module-readouts">
+              <span><b id="rails-open-count">--</b> open</span>
+              <span><b id="rails-degraded-count">--</b> degraded</span>
+              <span><b id="current-clock">--:--:--</b></span>
             </div>
-          </div>
-          <form id="route-form" class="route-form">
-            <label>
-              Coin
-              <select id="coin-select" name="coin"></select>
-            </label>
-            <label>
-              From chain
-              <select id="from-chain-select" name="from_chain"></select>
-            </label>
-            <label>
-              To chain
-              <select id="to-chain-select" name="to_chain"></select>
-            </label>
-            <label>
-              Amount
-              <input id="amount-input" name="amount" inputmode="decimal" placeholder="Optional">
-            </label>
-            <label class="checkbox-label">
-              <input id="equivalent-assets-input" name="equivalent_assets" type="checkbox">
-              <span>Equivalent assets</span>
-            </label>
-            <button id="find-route" type="submit">Find routes</button>
-          </form>
-          <div id="route-results" class="route-results" aria-live="polite">
-            <p class="muted">Pick a coin and chains to rank open exchange routes.</p>
-          </div>
-        </section>
+          </section>
 
-        <section class="panel events-panel" aria-labelledby="events-title">
-          <div class="panel-head compact">
-            <div>
-              <p class="eyebrow">Events</p>
-              <h2 id="events-title">Live feed</h2>
+          <a class="logo-plate" href="#status-board-title" aria-label="CexyRouter console home">
+            <img class="brand-logo" src="/cexyrouter-logo.svg?v=20260521-console" alt="CexyRouter">
+            <span>live CEX rail status · cross-chain routes · push alerts</span>
+          </a>
+
+          <section id="freshness-banner" class="freshness-banner neutral" aria-live="polite">
+            <div class="freshness-copy">
+              <strong>Adapters</strong>
+              <span id="freshness-summary">Checking adapter health</span>
             </div>
-            <span id="events-count" class="pill neutral">0 events</span>
-          </div>
-          <div class="feed-filters" aria-label="Live feed filters">
-            <label>
-              Exchange
-              <select id="event-exchange-filter">
-                <option value="">All exchanges</option>
-              </select>
-            </label>
-            <label>
-              Coin
-              <select id="event-coin-filter">
-                <option value="">All coins</option>
-              </select>
-            </label>
-            <label>
-              Chain
-              <select id="event-chain-filter">
-                <option value="">All chains</option>
-              </select>
-            </label>
-            <label>
-              Event type
-              <select id="event-kind-filter">
-                <option value="availability">Availability only</option>
-                <option value="all">All events</option>
-                <option value="deposit_off">Deposit off</option>
-                <option value="deposit_on">Deposit on</option>
-                <option value="withdraw_off">Withdraw off</option>
-                <option value="withdraw_on">Withdraw on</option>
-                <option value="rail_delisted">Rail delisted</option>
-                <option value="rail_relisted">Rail relisted</option>
-                <option value="fee_changed">Fee changed</option>
-                <option value="min_changed">Min changed</option>
-              </select>
-            </label>
-          </div>
-          <ol id="events-list" class="events-list" aria-live="polite">
-            <li class="event-empty">Waiting for rail events</li>
-          </ol>
+            <div id="freshness-chips" class="chip-row"></div>
+          </section>
+        </header>
+
+        <section class="console-grid">
+          <section class="panel board-panel" aria-labelledby="status-board-title">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Rails</p>
+                <h1 id="status-board-title">Status board</h1>
+              </div>
+              <div class="panel-actions">
+                <div class="panel-stat">
+                  <strong id="rails-total-count">--</strong>
+                  <span>tracked rails</span>
+                </div>
+                <button id="refresh-board" class="ghost-button" type="button">Refresh</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="status-table">
+                <thead id="status-head"></thead>
+                <tbody id="status-body">
+                  <tr>
+                    <td class="loading-cell">Loading rails</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <aside class="info-rail" aria-label="Route and activity modules">
+            <section class="panel route-panel" aria-labelledby="route-finder-title">
+              <div class="panel-head compact">
+                <div>
+                  <p class="eyebrow">Routes</p>
+                  <h2 id="route-finder-title">Route finder</h2>
+                </div>
+              </div>
+              <form id="route-form" class="route-form">
+                <label>
+                  Coin
+                  <select id="coin-select" name="coin"></select>
+                </label>
+                <label>
+                  From chain
+                  <select id="from-chain-select" name="from_chain"></select>
+                </label>
+                <label>
+                  To chain
+                  <select id="to-chain-select" name="to_chain"></select>
+                </label>
+                <label>
+                  Amount
+                  <input id="amount-input" name="amount" inputmode="decimal" placeholder="Optional">
+                </label>
+                <label class="checkbox-label">
+                  <input id="equivalent-assets-input" name="equivalent_assets" type="checkbox">
+                  <span>Equivalent assets</span>
+                </label>
+                <button id="find-route" type="submit">Find routes</button>
+              </form>
+              <div id="route-results" class="route-results" aria-live="polite">
+                <p class="muted">Pick a coin and chains to rank open exchange routes.</p>
+              </div>
+            </section>
+
+            <section class="panel events-panel" aria-labelledby="events-title">
+              <div class="panel-head compact">
+                <div>
+                  <p class="eyebrow">Events</p>
+                  <h2 id="events-title">Live feed</h2>
+                </div>
+                <span id="events-count" class="pill neutral">0 events</span>
+              </div>
+              <div class="feed-filters" aria-label="Live feed filters">
+                <label>
+                  Exchange
+                  <select id="event-exchange-filter">
+                    <option value="">All exchanges</option>
+                  </select>
+                </label>
+                <label>
+                  Coin
+                  <select id="event-coin-filter">
+                    <option value="">All coins</option>
+                  </select>
+                </label>
+                <label>
+                  Chain
+                  <select id="event-chain-filter">
+                    <option value="">All chains</option>
+                  </select>
+                </label>
+                <label>
+                  Event type
+                  <select id="event-kind-filter">
+                    <option value="all">All events</option>
+                    <option value="availability">Availability only</option>
+                    <option value="deposit_off">Deposit off</option>
+                    <option value="deposit_on">Deposit on</option>
+                    <option value="withdraw_off">Withdraw off</option>
+                    <option value="withdraw_on">Withdraw on</option>
+                    <option value="rail_delisted">Rail delisted</option>
+                    <option value="rail_relisted">Rail relisted</option>
+                    <option value="fee_changed">Fee changed</option>
+                    <option value="min_changed">Min changed</option>
+                  </select>
+                </label>
+              </div>
+              <ol id="events-list" class="events-list" aria-live="polite">
+                <li class="event-empty">Waiting for rail events</li>
+              </ol>
+            </section>
+          </aside>
         </section>
       </section>
     </main>

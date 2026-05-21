@@ -169,7 +169,6 @@ func findTargetRail(ctx context.Context, pool *pgxpool.Pool, coin string, fromCh
 		  AND w.is_active = TRUE
 		  AND d.deposit_enabled = TRUE
 		  AND w.withdraw_enabled = TRUE
-		  AND w.withdraw_fee_type IS NOT NULL
 		ORDER BY e.slug
 		LIMIT 1
 	`, coinJoinCondition, chainLookupCondition("from_chain", "$2"), chainLookupCondition("to_chain", "$3"))
@@ -289,7 +288,6 @@ func routeCount(ctx context.Context, pool *pgxpool.Pool, coin string, fromChain 
 		  AND w.is_active = TRUE
 		  AND d.deposit_enabled = TRUE
 		  AND w.withdraw_enabled = TRUE
-		  AND w.withdraw_fee_type IS NOT NULL
 	`, coinJoinCondition, chainLookupCondition("from_chain", "$2"), chainLookupCondition("to_chain", "$3"))
 
 	var count int
