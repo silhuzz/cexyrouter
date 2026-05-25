@@ -14,4 +14,9 @@ tmp/
 dist/
 e2e-smoke
 normalization-audit
-internal/cex router/
+
+# Browser session traces (playwright-mcp)
+.playwright-mcp/
+
+# Working-tree screenshots at repo root (canonical docs live under docs/images/)
+/*.png
