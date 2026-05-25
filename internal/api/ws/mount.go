@@ -90,6 +90,10 @@ func (h handler) serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if sub.Since != nil {
+		if time.Since(sub.Since.OccurredAt) > maxBackfillWindow {
+			_ = conn.Close(websocket.StatusPolicyViolation, "backfill window too old")
+			return
+		}
 		_, err := BackfillSince(r.Context(), h.store, *sub.Since, filters, func(event Event) error {
 			return write(envelope{Type: "event", Event: event})
 		})

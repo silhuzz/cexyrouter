@@ -42,6 +42,10 @@ func main() {
 	client := tg.NewTelegramClient(cfg.TelegramBotToken, nil, slog.Default())
 	repo := commands.NewSQLRepository(pool)
 	bot := tg.NewBot(client, repo, client, slog.Default())
+	bot.SetAllowedChats(cfg.TelegramAllowedChats)
+	if len(cfg.TelegramAllowedChats) == 0 {
+		slog.Warn("TELEGRAM_ALLOWED_CHATS is empty; bot accepts commands from any chat")
+	}
 	dispatcher := &dispatch.Runner{DB: pool, Sender: client, Logger: slog.Default()}
 	go func() {
 		if err := dispatcher.Run(ctx); err != nil && ctx.Err() == nil {

@@ -3,11 +3,14 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/silhuzz/cexyrouter/internal/config"
@@ -24,6 +27,7 @@ type MountFunc func(r chi.Router, deps Deps)
 
 func NewRouter(deps Deps, mounts ...MountFunc) http.Handler {
 	r := chi.NewRouter()
+	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   deps.Config.CORSAllowedOrigins,
 		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodOptions},
@@ -31,6 +35,9 @@ func NewRouter(deps Deps, mounts ...MountFunc) http.Handler {
 		AllowCredentials: false,
 		MaxAge:           300,
 	}))
+	if deps.Config.RateLimitPerMin > 0 {
+		r.Use(httprate.LimitByIP(deps.Config.RateLimitPerMin, time.Minute))
+	}
 
 	MountHealth(r, deps)
 	MountFoundation(r, deps)
@@ -46,10 +53,8 @@ func MountHealth(r chi.Router, deps Deps) {
 		defer cancel()
 
 		if err := db.Health(ctx, deps.DB); err != nil {
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
-				"status": "unhealthy",
-				"error":  err.Error(),
-			})
+			slog.Warn("healthz database check failed", "error", err)
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unhealthy"})
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})

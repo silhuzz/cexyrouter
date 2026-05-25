@@ -2,9 +2,11 @@ package admin
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"net/http"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -24,7 +26,6 @@ type freshnessItem struct {
 	ExchangeName        string     `json:"exchange_name"`
 	LastSuccessfulPoll  *time.Time `json:"last_successful_poll"`
 	LastAttempt         *time.Time `json:"last_attempt"`
-	LastError           *string    `json:"last_error"`
 	ConsecutiveFailures int32      `json:"consecutive_failures"`
 }
 
@@ -58,7 +59,6 @@ func (h handler) listAdapterFreshness(w http.ResponseWriter, r *http.Request) {
 			e.name,
 			af.last_successful_poll,
 			af.last_attempt,
-			af.last_error,
 			af.consecutive_failures
 		FROM exchanges e
 		JOIN adapter_freshness af ON af.exchange_id = e.id
@@ -78,14 +78,12 @@ func (h handler) listAdapterFreshness(w http.ResponseWriter, r *http.Request) {
 		var item freshnessItem
 		var lastSuccessfulPoll pgtype.Timestamptz
 		var lastAttempt pgtype.Timestamptz
-		var lastError pgtype.Text
 		var consecutiveFailures pgtype.Int4
 		if err := rows.Scan(
 			&item.ExchangeSlug,
 			&item.ExchangeName,
 			&lastSuccessfulPoll,
 			&lastAttempt,
-			&lastError,
 			&consecutiveFailures,
 		); err != nil {
 			writeError(w, http.StatusInternalServerError, "database_scan_failed", "failed to read adapter freshness")
@@ -93,9 +91,6 @@ func (h handler) listAdapterFreshness(w http.ResponseWriter, r *http.Request) {
 		}
 		item.LastSuccessfulPoll = timestamptzPtr(lastSuccessfulPoll)
 		item.LastAttempt = timestamptzPtr(lastAttempt)
-		if lastError.Valid {
-			item.LastError = &lastError.String
-		}
 		if consecutiveFailures.Valid {
 			item.ConsecutiveFailures = consecutiveFailures.Int32
 		}
@@ -110,8 +105,13 @@ func (h handler) listAdapterFreshness(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) metrics(w http.ResponseWriter, r *http.Request) {
-	token := h.deps.Config.InternalMetricsToken
-	if token != "" && r.URL.Query().Get("token") != token {
+	token := strings.TrimSpace(h.deps.Config.InternalMetricsToken)
+	if token == "" {
+		writeError(w, http.StatusNotFound, "not_found", "metrics endpoint is disabled")
+		return
+	}
+	provided := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if subtle.ConstantTimeCompare([]byte(provided), []byte(token)) != 1 {
 		writeError(w, http.StatusUnauthorized, "unauthorized", "valid metrics token required")
 		return
 	}

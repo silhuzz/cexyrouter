@@ -37,6 +37,15 @@ func NewBot(poller Poller, repo commands.Repository, replier commands.Replier, l
 	}
 }
 
+// SetAllowedChats restricts the bot to a fixed set of Telegram chat IDs.
+// Pass an empty slice (or nil) to allow any chat.
+func (b *Bot) SetAllowedChats(ids []int64) {
+	if b == nil || b.handler == nil {
+		return
+	}
+	b.handler.SetAllowedChats(ids)
+}
+
 func (b *Bot) Run(ctx context.Context) error {
 	if b == nil || b.poller == nil {
 		return errors.New("telegram poller is not configured")

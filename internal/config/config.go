@@ -58,9 +58,10 @@ type APIConfig struct {
 }
 
 type BotConfig struct {
-	DatabaseURL      string
-	LogLevel         string
-	TelegramBotToken string
+	DatabaseURL          string
+	LogLevel             string
+	TelegramBotToken     string
+	TelegramAllowedChats []int64
 }
 
 func LoadIngester() (IngesterConfig, error) {
@@ -152,10 +153,15 @@ func LoadAPI() (APIConfig, error) {
 }
 
 func LoadBot() (BotConfig, error) {
+	allowedChats, err := parseChatIDs(os.Getenv("TELEGRAM_ALLOWED_CHATS"))
+	if err != nil {
+		return BotConfig{}, err
+	}
 	cfg := BotConfig{
-		DatabaseURL:      os.Getenv("DATABASE_URL"),
-		LogLevel:         env("LOG_LEVEL", "info"),
-		TelegramBotToken: os.Getenv("TELEGRAM_BOT_TOKEN"),
+		DatabaseURL:          os.Getenv("DATABASE_URL"),
+		LogLevel:             env("LOG_LEVEL", "info"),
+		TelegramBotToken:     os.Getenv("TELEGRAM_BOT_TOKEN"),
+		TelegramAllowedChats: allowedChats,
 	}
 	var missing []string
 	required(&missing, "DATABASE_URL", cfg.DatabaseURL)
@@ -167,6 +173,27 @@ func LoadBot() (BotConfig, error) {
 		return BotConfig{}, err
 	}
 	return cfg, nil
+}
+
+func parseChatIDs(raw string) ([]int64, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]int64, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		id, err := strconv.ParseInt(part, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("TELEGRAM_ALLOWED_CHATS contains non-numeric value %q", part)
+		}
+		out = append(out, id)
+	}
+	return out, nil
 }
 
 func ConfigureLogger(level string) {

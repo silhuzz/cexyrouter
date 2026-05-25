@@ -114,6 +114,9 @@ func Parse(text string) (Command, error) {
 }
 
 func parseSubscribe(args []string) (SubscribeCommand, error) {
+	if len(args) == 0 {
+		return SubscribeCommand{}, errors.New("usage: /subscribe <exchange> [coin] [chain] [event_types] (use * as wildcard, but provide at least one filter)")
+	}
 	if len(args) > 4 {
 		args = append(args[:3], strings.Join(args[3:], ""))
 	}

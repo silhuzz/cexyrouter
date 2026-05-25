@@ -32,10 +32,11 @@ type Repository interface {
 }
 
 type Handler struct {
-	repo     Repository
-	replier  Replier
-	mu       sync.Mutex
-	sessions map[int64]*demoSession
+	repo         Repository
+	replier      Replier
+	allowedChats map[int64]struct{}
+	mu           sync.Mutex
+	sessions     map[int64]*demoSession
 }
 
 func NewHandler(repo Repository, replier Replier) *Handler {
@@ -46,7 +47,32 @@ func NewHandler(repo Repository, replier Replier) *Handler {
 	}
 }
 
+// SetAllowedChats restricts the bot to a fixed set of chat IDs. Pass an empty
+// slice (or nil) to leave the bot open to any chat.
+func (h *Handler) SetAllowedChats(ids []int64) {
+	if len(ids) == 0 {
+		h.allowedChats = nil
+		return
+	}
+	allowed := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		allowed[id] = struct{}{}
+	}
+	h.allowedChats = allowed
+}
+
+func (h *Handler) chatAllowed(chatID int64) bool {
+	if h.allowedChats == nil {
+		return true
+	}
+	_, ok := h.allowedChats[chatID]
+	return ok
+}
+
 func (h *Handler) Handle(ctx context.Context, msg Message) error {
+	if !h.chatAllowed(msg.ChatID) {
+		return nil
+	}
 	if strings.TrimSpace(msg.CallbackData) != "" {
 		return h.handleCallback(ctx, msg)
 	}

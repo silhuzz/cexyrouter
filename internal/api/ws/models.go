@@ -11,6 +11,7 @@ const (
 	defaultOutboundBuffer = 64
 	slowClientCloseCode   = 1013
 	backfillBatchLimit    = 1000
+	maxBackfillWindow     = 24 * time.Hour
 )
 
 type Ref struct {

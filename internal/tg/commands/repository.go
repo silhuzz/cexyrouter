@@ -38,10 +38,25 @@ func (r *SQLRepository) EnsureUser(ctx context.Context, chatID int64) (User, err
 	return user, nil
 }
 
+// maxRulesPerChat caps how many alert_rules a single Telegram chat can create.
+// Prevents a single user from filling the table by spamming /subscribe.
+const maxRulesPerChat = 50
+
 func (r *SQLRepository) CreateRule(ctx context.Context, chatID int64, cmd SubscribeCommand) (Rule, error) {
 	user, err := r.EnsureUser(ctx, chatID)
 	if err != nil {
 		return Rule{}, err
+	}
+
+	var existing int
+	if err := r.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM alert_rules WHERE tg_user_id = $1`,
+		user.ID,
+	).Scan(&existing); err != nil {
+		return Rule{}, fmt.Errorf("count alert rules: %w", err)
+	}
+	if existing >= maxRulesPerChat {
+		return Rule{}, fmt.Errorf("alert rule limit reached (%d per chat); /unsubscribe one first", maxRulesPerChat)
 	}
 
 	exchange, err := r.resolveReference(ctx, "exchange", cmd.Exchange)
