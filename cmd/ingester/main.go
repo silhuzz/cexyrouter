@@ -25,6 +25,7 @@ import (
 	"github.com/silhuzz/cexyrouter/internal/config"
 	"github.com/silhuzz/cexyrouter/internal/db"
 	"github.com/silhuzz/cexyrouter/internal/envfile"
+	exchangeinfo "github.com/silhuzz/cexyrouter/internal/exchanges"
 	"github.com/silhuzz/cexyrouter/internal/ingester"
 	"github.com/silhuzz/cexyrouter/pkg/types"
 )
@@ -126,7 +127,7 @@ func buildAdapters(cfg config.IngesterConfig) []types.Adapter {
 	client := &http.Client{Timeout: cfg.PollTimeout}
 	selected := make(map[string]bool, len(cfg.Exchanges))
 	for _, exchange := range cfg.Exchanges {
-		selected[strings.ToLower(strings.TrimSpace(exchange))] = true
+		selected[exchangeinfo.NormalizeSlug(exchange)] = true
 	}
 
 	var adapters []types.Adapter

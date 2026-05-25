@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	exchangeinfo "github.com/silhuzz/cexyrouter/internal/exchanges"
 )
 
 var validEventTypes = map[string]struct{}{
@@ -77,7 +79,7 @@ func ParseSubscription(payload []byte) (Subscription, error) {
 
 func NormalizeFilters(filters Filters) (Filters, error) {
 	var err error
-	if filters.Exchange, err = normalizeSlugList(filters.Exchange, "exchange"); err != nil {
+	if filters.Exchange, err = normalizeExchangeList(filters.Exchange); err != nil {
 		return Filters{}, err
 	}
 	if filters.Coin, err = normalizeSlugList(filters.Coin, "coin"); err != nil {
@@ -90,6 +92,17 @@ func NormalizeFilters(filters Filters) (Filters, error) {
 		return Filters{}, err
 	}
 	return filters, nil
+}
+
+func normalizeExchangeList(values []string) ([]string, error) {
+	if values == nil {
+		return nil, nil
+	}
+	values, err := normalizeSlugList(values, "exchange")
+	if err != nil {
+		return nil, err
+	}
+	return exchangeinfo.NormalizeSlugs(values), nil
 }
 
 func (filters Filters) Match(event Event) bool {

@@ -83,7 +83,7 @@ func TestParseSubscription(t *testing.T) {
 	payload, err := json.Marshal(map[string]any{
 		"type": "subscribe",
 		"filters": map[string]any{
-			"exchange":   []string{" Binance ", "binance"},
+			"exchange":   []string{" Binance ", "binance", "gate.io"},
 			"coin":       []string{"USDT"},
 			"chain":      []string{"TRON"},
 			"event_type": []string{"deposit_off"},
@@ -104,7 +104,7 @@ func TestParseSubscription(t *testing.T) {
 	if subscription.Since == nil || subscription.Since.ID != 99 {
 		t.Fatalf("unexpected since cursor: %+v", subscription.Since)
 	}
-	if got := subscription.Filters.Exchange; len(got) != 1 || got[0] != "binance" {
+	if got := subscription.Filters.Exchange; len(got) != 2 || got[0] != "binance" || got[1] != "gate" {
 		t.Fatalf("exchange filters = %#v", got)
 	}
 	if got := subscription.Filters.Coin; len(got) != 1 || got[0] != "usdt" {

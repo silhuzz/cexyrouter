@@ -54,6 +54,16 @@ func TestParseStatusWildcardHandling(t *testing.T) {
 	}
 }
 
+func TestParseNormalizesGateIOExchangeAlias(t *testing.T) {
+	cmd, err := Parse("/subscribe gate.io USDT TRON")
+	if err != nil {
+		t.Fatalf("parse subscribe: %v", err)
+	}
+	if cmd.Subscribe.Exchange != "gate" {
+		t.Fatalf("exchange = %q, want gate", cmd.Subscribe.Exchange)
+	}
+}
+
 func TestParseUnsubscribe(t *testing.T) {
 	cmd, err := Parse("/unsubscribe 42")
 	if err != nil {

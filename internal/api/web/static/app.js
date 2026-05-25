@@ -23,11 +23,13 @@
   ];
 
   const EXCHANGES = [
+    { slug: "binance", name: "Binance", statusUrl: "https://www.binance.com/en/support/announcement/list/49", statusLabel: "Binance announcements" },
+    { slug: "bybit", name: "Bybit", statusUrl: "https://status.bybit.com", statusLabel: "Bybit status" },
     { slug: "okx", name: "OKX" },
     { slug: "bithumb", name: "Bithumb" },
-    { slug: "bitget", name: "Bitget" },
+    { slug: "bitget", name: "Bitget", statusUrl: "https://www.bitget.com/support/sections/12508313405050/4", statusLabel: "Bitget system updates" },
     { slug: "kucoin", name: "KuCoin" },
-    { slug: "gate", name: "Gate" },
+    { slug: "gate", name: "Gate.io", statusUrl: "https://www.gate.com/announcements", statusLabel: "Gate announcements" },
     { slug: "htx", name: "HTX" },
     { slug: "coinex", name: "CoinEx" },
     { slug: "whitebit", name: "WhiteBIT" },
@@ -298,7 +300,9 @@
     let failing = 0;
     let stale = 0;
     const html = rows.map((row) => {
-      const exchange = displayExchange(exchangeSlug(row));
+      const slug = exchangeSlug(row);
+      const exchange = displayExchange(slug);
+      const statusAnchor = statusLink(slug, "status", "status-link");
 
       const failures = Number(rawField(row, ["consecutive_failures", "consecutiveFailures"], 0)) || 0;
       const lastPoll = field(row, ["last_successful_poll", "lastSuccessfulPoll"], "");
@@ -307,13 +311,13 @@
 
       if (failures > 0) {
         failing += 1;
-        return `<span class="chip bad">${escapeHTML(exchange)} ${failures} fail${failures === 1 ? "" : "s"}</span>`;
+        return `<span class="chip bad">${escapeHTML(exchange)} ${failures} fail${failures === 1 ? "" : "s"}${statusAnchor}</span>`;
       }
       if (isStale) {
         stale += 1;
-        return `<span class="chip warn">${escapeHTML(exchange)} ${escapeHTML(relativeTime(lastPoll))}</span>`;
+        return `<span class="chip warn">${escapeHTML(exchange)} ${escapeHTML(relativeTime(lastPoll))}${statusAnchor}</span>`;
       }
-      return `<span class="chip ok">${escapeHTML(exchange)} ${escapeHTML(relativeTime(lastPoll))}</span>`;
+      return `<span class="chip ok">${escapeHTML(exchange)} ${escapeHTML(relativeTime(lastPoll))}${statusAnchor}</span>`;
     }).join("");
 
     chips.innerHTML = html || `<span class="chip neutral">Waiting for adapter polls</span>`;
@@ -344,7 +348,7 @@
     head.innerHTML = `<tr><th>Exchange</th>${pairs.map((pair) => `<th>${escapeHTML(pairLabel(pair))}</th>`).join("")}</tr>`;
     body.innerHTML = state.exchanges.map((exchange) => {
       const cells = pairs.map((pair) => renderRailCell(exchange.slug, pair)).join("");
-      return `<tr><td class="exchange-cell">${escapeHTML(exchange.name)}</td>${cells}</tr>`;
+      return `<tr><td class="exchange-cell">${exchangeName(exchange)}</td>${cells}</tr>`;
     }).join("");
     renderRailStats();
   }
@@ -961,7 +965,7 @@
     const bySlug = new Map();
     [...fallback, ...incoming].forEach((item) => {
       if (item.slug) {
-        bySlug.set(item.slug, item);
+        bySlug.set(item.slug, { ...(bySlug.get(item.slug) || {}), ...item });
       }
     });
     return Array.from(bySlug.values());
@@ -1010,6 +1014,22 @@
     const normalized = normalizeSlug(slug);
     const exchange = state.exchanges.find((item) => item.slug === normalized);
     return exchange ? exchange.name : titleize(normalized || slug || "Exchange");
+  }
+
+  function exchangeName(exchange) {
+    const label = escapeHTML(exchange.name || displayExchange(exchange.slug));
+    if (!exchange.statusUrl) {
+      return label;
+    }
+    return `<a class="exchange-link" href="${escapeAttribute(exchange.statusUrl)}" target="_blank" rel="noopener noreferrer" title="${escapeAttribute(exchange.statusLabel || `${exchange.name} status`)}">${label}</a>`;
+  }
+
+  function statusLink(slug, label, className) {
+    const exchange = state.exchanges.find((item) => item.slug === normalizeSlug(slug));
+    if (!exchange || !exchange.statusUrl) {
+      return "";
+    }
+    return ` <a class="${escapeAttribute(className)}" href="${escapeAttribute(exchange.statusUrl)}" target="_blank" rel="noopener noreferrer" title="${escapeAttribute(exchange.statusLabel || `${exchange.name} status`)}">${escapeHTML(label)}</a>`;
   }
 
   function displayCoin(slug) {
@@ -1153,5 +1173,9 @@
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+  }
+
+  function escapeAttribute(value) {
+    return escapeHTML(value);
   }
 })();

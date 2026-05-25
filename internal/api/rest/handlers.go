@@ -17,6 +17,7 @@ import (
 
 	"github.com/silhuzz/cexyrouter/internal/api"
 	"github.com/silhuzz/cexyrouter/internal/api/eventmeta"
+	exchangeinfo "github.com/silhuzz/cexyrouter/internal/exchanges"
 )
 
 const (
@@ -234,7 +235,7 @@ func (h handler) listRails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if exchange := strings.TrimSpace(query.Get("exchange")); exchange != "" {
-		addFilter("e.slug = $%d", exchange)
+		addFilter("e.slug = $%d", exchangeinfo.NormalizeSlug(exchange))
 	}
 	if coin := strings.TrimSpace(query.Get("coin")); coin != "" {
 		addFilter("c.slug = $%d", coin)
@@ -612,7 +613,7 @@ func (h handler) listEvents(w http.ResponseWriter, r *http.Request) {
 		addFilter("re.event_type = ANY($%d::text[])", eventTypes)
 	}
 	if exchange := strings.TrimSpace(query.Get("exchange")); exchange != "" {
-		addFilter("e.slug = $%d", exchange)
+		addFilter("e.slug = $%d", exchangeinfo.NormalizeSlug(exchange))
 	}
 	if coin := strings.TrimSpace(query.Get("coin")); coin != "" {
 		addFilter("c.slug = $%d", coin)

@@ -8,7 +8,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	exchangeinfo "github.com/silhuzz/cexyrouter/internal/exchanges"
 )
+
+const defaultPublicExchanges = "bithumb,bitget,kucoin,gate,htx,coinex,whitebit,bitmart"
 
 type IngesterConfig struct {
 	DatabaseURL    string
@@ -60,6 +64,11 @@ type BotConfig struct {
 }
 
 func LoadIngester() (IngesterConfig, error) {
+	exchangeValue, exchangeOverride := os.LookupEnv("INGESTER_EXCHANGES")
+	if !exchangeOverride {
+		exchangeValue = defaultPublicExchanges
+	}
+
 	cfg := IngesterConfig{
 		DatabaseURL:      os.Getenv("DATABASE_URL"),
 		LogLevel:         env("LOG_LEVEL", "info"),
@@ -67,7 +76,7 @@ func LoadIngester() (IngesterConfig, error) {
 		PollTimeout:      durationSeconds("POLL_TIMEOUT_SECONDS", 10),
 		MaxConcurrency:   intEnv("INGESTER_MAX_CONCURRENCY", 4),
 		RunOnce:          boolEnv("INGESTER_RUN_ONCE", false),
-		Exchanges:        splitCSV(env("INGESTER_EXCHANGES", "bithumb,bitget,kucoin,gate,htx,coinex,whitebit,bitmart")),
+		Exchanges:        exchangeinfo.NormalizeSlugs(splitCSV(exchangeValue)),
 		BinanceAPIKey:    os.Getenv("BINANCE_API_KEY"),
 		BinanceAPISecret: os.Getenv("BINANCE_API_SECRET"),
 		BinanceBaseURL:   os.Getenv("BINANCE_BASE_URL"),
@@ -92,6 +101,10 @@ func LoadIngester() (IngesterConfig, error) {
 		UpbitBaseURL:     env("UPBIT_BASE_URL", "https://api.upbit.com"),
 		WhiteBITBaseURL:  os.Getenv("WHITEBIT_BASE_URL"),
 	}
+	if !exchangeOverride {
+		cfg.Exchanges = appendCredentialedMainVenues(cfg.Exchanges, cfg)
+	}
+
 	var missing []string
 	required(&missing, "DATABASE_URL", cfg.DatabaseURL)
 	if exchangeSelected(cfg.Exchanges, "binance") {
@@ -244,9 +257,21 @@ func splitCSV(value string) []string {
 	return out
 }
 
+func appendCredentialedMainVenues(current []string, cfg IngesterConfig) []string {
+	extra := append([]string(nil), current...)
+	if strings.TrimSpace(cfg.BinanceAPIKey) != "" && strings.TrimSpace(cfg.BinanceAPISecret) != "" {
+		extra = append(extra, "binance")
+	}
+	if strings.TrimSpace(cfg.BybitAPIKey) != "" && strings.TrimSpace(cfg.BybitAPISecret) != "" {
+		extra = append(extra, "bybit")
+	}
+	return exchangeinfo.NormalizeSlugs(extra)
+}
+
 func exchangeSelected(exchanges []string, slug string) bool {
+	normalized := exchangeinfo.NormalizeSlug(slug)
 	for _, exchange := range exchanges {
-		if strings.EqualFold(strings.TrimSpace(exchange), slug) {
+		if exchangeinfo.NormalizeSlug(exchange) == normalized {
 			return true
 		}
 	}

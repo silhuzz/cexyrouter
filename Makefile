@@ -1,7 +1,7 @@
 APP_NAME := cex-router
 GOENV := GOTOOLCHAIN=local GOPROXY=https://proxy.golang.org,direct GOSUMDB=sum.golang.org
 GOVULNCHECK ?= $(shell go env GOPATH)/bin/govulncheck
-SMOKE_EXCHANGES ?= bithumb,bitget,kucoin,gate,htx,coinex,whitebit,bitmart
+SMOKE_EXCHANGES ?= binance,bybit,bitget,gate
 NORMALIZATION_AUDIT_FLAGS ?=
 DEMO_COIN ?= usdt
 DEMO_FROM_CHAIN ?= ethereum

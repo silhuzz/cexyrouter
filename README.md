@@ -21,7 +21,7 @@ CEXYROUTER monitors centralized exchange deposit and withdrawal rails, normalize
   </a>
 </p>
 
-<p align="center"><em>One dashboard, three panels: rail status across nine exchanges, a cross-exchange route finder, and a live event feed — all driven by the same ingest pipeline.</em></p>
+<p align="center"><em>One dashboard, three panels: rail status across eleven exchanges, a cross-exchange route finder, and a live event feed — all driven by the same ingest pipeline.</em></p>
 
 The hackathon demo path is built around three visible moments: live route availability, controlled route status changes, and Telegram alerts that users can filter by exchange, token, and chain.
 
@@ -66,13 +66,21 @@ Then open:
 curl http://localhost:8080/healthz
 ```
 
-The default `INGESTER_EXCHANGES` uses public endpoints only:
+The main venue set is Binance, Bybit, Bitget, and Gate.io. Bitget and Gate.io use public endpoints; Binance and Bybit require read-only API credentials for their rail metadata.
+
+When `INGESTER_EXCHANGES` is unset, the default set uses public endpoints only:
 
 ```text
 bithumb,bitget,kucoin,gate,htx,coinex,whitebit,bitmart
 ```
 
-Add `okx`, `binance`, `bybit`, or `upbit` only when matching read-only credentials are present in `.env`.
+Binance and Bybit are auto-added to that default when both matching read-only credentials are present in `.env`. To run only the main venues, set:
+
+```text
+INGESTER_EXCHANGES=binance,bybit,bitget,gate
+```
+
+Add `okx` or `upbit` only when matching read-only credentials are present in `.env`.
 
 To run the Telegram bot locally, set `TELEGRAM_BOT_TOKEN` and start the bot service:
 

@@ -23,12 +23,13 @@ import (
 	"github.com/silhuzz/cexyrouter/internal/adapters/upbit"
 	"github.com/silhuzz/cexyrouter/internal/adapters/whitebit"
 	"github.com/silhuzz/cexyrouter/internal/envfile"
+	exchangeinfo "github.com/silhuzz/cexyrouter/internal/exchanges"
 	"github.com/silhuzz/cexyrouter/pkg/types"
 )
 
 func main() {
 	envPath := flag.String("env", ".env", "env file to load if present")
-	exchanges := flag.String("exchanges", "bithumb,bitget,kucoin,gate,htx,coinex,whitebit,bitmart", "comma-separated exchanges or all")
+	exchanges := flag.String("exchanges", exchangeinfo.MainVenueSlugsCSV, "comma-separated exchanges or all")
 	timeout := flag.Duration("timeout", 20*time.Second, "timeout per adapter")
 	flag.Parse()
 
@@ -144,7 +145,7 @@ func parseWanted(raw string) map[string]bool {
 	}
 	wanted := make(map[string]bool)
 	for _, part := range strings.Split(raw, ",") {
-		part = strings.TrimSpace(strings.ToLower(part))
+		part = exchangeinfo.NormalizeSlug(part)
 		if part != "" {
 			wanted[part] = true
 		}

@@ -15,11 +15,13 @@ type demoChoice struct {
 }
 
 var demoExchangeOptions = []demoChoice{
+	{Slug: "binance", Label: "Binance"},
+	{Slug: "bybit", Label: "Bybit"},
 	{Slug: "okx", Label: "OKX"},
 	{Slug: "bithumb", Label: "Bithumb"},
 	{Slug: "bitget", Label: "Bitget"},
 	{Slug: "kucoin", Label: "KuCoin"},
-	{Slug: "gate", Label: "Gate"},
+	{Slug: "gate", Label: "Gate.io"},
 	{Slug: "htx", Label: "HTX"},
 	{Slug: "coinex", Label: "CoinEx"},
 	{Slug: "whitebit", Label: "WhiteBIT"},

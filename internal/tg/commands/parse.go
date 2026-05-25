@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	exchangeinfo "github.com/silhuzz/cexyrouter/internal/exchanges"
 )
 
 type Kind string
@@ -120,7 +122,7 @@ func parseSubscribe(args []string) (SubscribeCommand, error) {
 		EventTypes: DefaultEventTypes(),
 	}
 	if len(args) > 0 {
-		sub.Exchange = normalizeFilter(args[0])
+		sub.Exchange = normalizeExchangeFilter(args[0])
 	}
 	if len(args) > 1 {
 		sub.Coin = normalizeFilter(args[1])
@@ -145,7 +147,7 @@ func parseStatus(args []string) (StatusCommand, error) {
 
 	var status StatusCommand
 	if len(args) > 0 {
-		status.Exchange = normalizeFilter(args[0])
+		status.Exchange = normalizeExchangeFilter(args[0])
 	}
 	if len(args) > 1 {
 		status.Coin = normalizeFilter(args[1])
@@ -206,6 +208,14 @@ func normalizeFilter(value string) string {
 		return ""
 	}
 	return value
+}
+
+func normalizeExchangeFilter(value string) string {
+	normalized := normalizeFilter(value)
+	if normalized == "" {
+		return ""
+	}
+	return exchangeinfo.NormalizeSlug(normalized)
 }
 
 func DefaultEventTypes() []string {

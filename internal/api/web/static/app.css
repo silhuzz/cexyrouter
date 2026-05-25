@@ -283,6 +283,23 @@ button {
   color: #8a1e14;
 }
 
+.status-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.exchange-link {
+  color: var(--lcd-bright);
+  text-decoration: none;
+}
+
+.exchange-link:hover,
+.status-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .ghost-button,
 .route-form button {
   min-height: 32px;

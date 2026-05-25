@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 ENV_FILE="${ENV_FILE:-.env}"
-SMOKE_EXCHANGES="${SMOKE_EXCHANGES:-okx,bithumb,bitget,kucoin,gate,htx,coinex,whitebit,bitmart}"
+SMOKE_EXCHANGES="${SMOKE_EXCHANGES:-binance,bybit,bitget,gate}"
 RUN_INGEST="${RUN_INGEST:-1}"
 START_SERVICES="${START_SERVICES:-1}"
 START_BOT="${START_BOT:-auto}"
