@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type PgxQuerier interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
@@ -32,6 +34,41 @@ func (s *SQLStore) ExchangeID(ctx context.Context, exchangeSlug string) (int64, 
 		return 0, err
 	}
 	return id, nil
+}
+
+func (s *SQLStore) LoadCoinAliases(ctx context.Context, exchangeID int64) ([]CoinAliasRef, error) {
+	rows, err := s.q.Query(ctx, `
+		SELECT ca.exchange_id, ca.raw_symbol, ca.raw_name,
+		       c.id, c.slug, c.symbol, c.name
+		FROM coin_aliases ca
+		JOIN coins c ON c.id = ca.coin_id
+		WHERE ca.exchange_id = $1
+	`, exchangeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var aliases []CoinAliasRef
+	for rows.Next() {
+		var alias CoinAliasRef
+		if err := rows.Scan(
+			&alias.ExchangeID,
+			&alias.RawSymbol,
+			&alias.RawName,
+			&alias.Coin.ID,
+			&alias.Coin.Slug,
+			&alias.Coin.Symbol,
+			&alias.Coin.Name,
+		); err != nil {
+			return nil, err
+		}
+		aliases = append(aliases, alias)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return aliases, nil
 }
 
 func (s *SQLStore) FindCoinAlias(ctx context.Context, exchangeID int64, rawSymbol string, rawName string) (CoinRef, bool, error) {
@@ -115,17 +152,88 @@ func (s *SQLStore) InsertCoin(ctx context.Context, symbol string, name string) (
 }
 
 func (s *SQLStore) UpsertCoinAlias(ctx context.Context, upsert CoinAliasUpsert) error {
+	return s.UpsertCoinAliases(ctx, []CoinAliasUpsert{upsert})
+}
+
+func (s *SQLStore) UpsertCoinAliases(ctx context.Context, upserts []CoinAliasUpsert) error {
+	if len(upserts) == 0 {
+		return nil
+	}
+
+	exchangeIDs := make([]int32, 0, len(upserts))
+	rawSymbols := make([]string, 0, len(upserts))
+	rawNames := make([]string, 0, len(upserts))
+	coinIDs := make([]int32, 0, len(upserts))
+	seenAt := make([]time.Time, 0, len(upserts))
+	for i, upsert := range upserts {
+		exchangeID, err := int32FromInt64(upsert.ExchangeID)
+		if err != nil {
+			return err
+		}
+		coinID, err := int32FromInt64(upsert.CoinID)
+		if err != nil {
+			return err
+		}
+		exchangeIDs = append(exchangeIDs, exchangeID)
+		rawSymbols = append(rawSymbols, clean(upsert.RawSymbol))
+		rawNames = append(rawNames, clean(upsert.RawName))
+		coinIDs = append(coinIDs, coinID)
+		seenAt = append(seenAt, upsert.SeenAt)
+		if rawSymbols[i] == "" {
+			return ErrMissingCoinInput
+		}
+	}
+
 	_, err := s.q.Exec(ctx, `
 		INSERT INTO coin_aliases (
 			exchange_id, raw_symbol, raw_name, coin_id, confidence, first_seen, last_seen
 		)
-		VALUES ($1, $2, $3, $4, 1, $5, $5)
+		SELECT input.exchange_id, input.raw_symbol, input.raw_name, input.coin_id, 1, input.seen_at, input.seen_at
+		FROM unnest(
+			$1::int[], $2::text[], $3::text[], $4::int[], $5::timestamptz[]
+		) AS input(exchange_id, raw_symbol, raw_name, coin_id, seen_at)
 		ON CONFLICT (exchange_id, raw_symbol, raw_name) DO UPDATE
 		SET coin_id = EXCLUDED.coin_id,
 		    confidence = LEAST(coin_aliases.confidence + 1, 3),
 		    last_seen = EXCLUDED.last_seen
-	`, upsert.ExchangeID, clean(upsert.RawSymbol), clean(upsert.RawName), upsert.CoinID, upsert.SeenAt)
+	`, exchangeIDs, rawSymbols, rawNames, coinIDs, seenAt)
 	return err
+}
+
+func (s *SQLStore) LoadChainAliases(ctx context.Context, exchangeID int64) ([]ChainAliasRef, error) {
+	rows, err := s.q.Query(ctx, `
+		SELECT ca.exchange_id, ca.raw_symbol, ca.raw_name, ca.raw_network_id,
+		       c.id, c.slug, c.symbol, c.name
+		FROM chain_aliases ca
+		JOIN chains c ON c.id = ca.chain_id
+		WHERE ca.exchange_id = $1
+	`, exchangeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var aliases []ChainAliasRef
+	for rows.Next() {
+		var alias ChainAliasRef
+		if err := rows.Scan(
+			&alias.ExchangeID,
+			&alias.RawSymbol,
+			&alias.RawName,
+			&alias.RawNetworkID,
+			&alias.Chain.ID,
+			&alias.Chain.Slug,
+			&alias.Chain.Symbol,
+			&alias.Chain.Name,
+		); err != nil {
+			return nil, err
+		}
+		aliases = append(aliases, alias)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return aliases, nil
 }
 
 func (s *SQLStore) FindChainAlias(ctx context.Context, exchangeID int64, rawSymbol string, rawName string, rawNetworkID string) (ChainRef, bool, error) {
@@ -211,17 +319,63 @@ func (s *SQLStore) InsertChain(ctx context.Context, symbol string, name string) 
 }
 
 func (s *SQLStore) UpsertChainAlias(ctx context.Context, upsert ChainAliasUpsert) error {
+	return s.UpsertChainAliases(ctx, []ChainAliasUpsert{upsert})
+}
+
+func (s *SQLStore) UpsertChainAliases(ctx context.Context, upserts []ChainAliasUpsert) error {
+	if len(upserts) == 0 {
+		return nil
+	}
+
+	exchangeIDs := make([]int32, 0, len(upserts))
+	rawSymbols := make([]string, 0, len(upserts))
+	rawNames := make([]string, 0, len(upserts))
+	rawNetworkIDs := make([]string, 0, len(upserts))
+	chainIDs := make([]int32, 0, len(upserts))
+	seenAt := make([]time.Time, 0, len(upserts))
+	for _, upsert := range upserts {
+		exchangeID, err := int32FromInt64(upsert.ExchangeID)
+		if err != nil {
+			return err
+		}
+		chainID, err := int32FromInt64(upsert.ChainID)
+		if err != nil {
+			return err
+		}
+		rawSymbol := clean(upsert.RawSymbol)
+		rawName := clean(upsert.RawName)
+		if rawSymbol == "" && rawName == "" {
+			return ErrMissingChainInput
+		}
+		exchangeIDs = append(exchangeIDs, exchangeID)
+		rawSymbols = append(rawSymbols, rawSymbol)
+		rawNames = append(rawNames, rawName)
+		rawNetworkIDs = append(rawNetworkIDs, clean(upsert.RawNetworkID))
+		chainIDs = append(chainIDs, chainID)
+		seenAt = append(seenAt, upsert.SeenAt)
+	}
+
 	_, err := s.q.Exec(ctx, `
 		INSERT INTO chain_aliases (
 			exchange_id, raw_symbol, raw_name, raw_network_id, chain_id, confidence, first_seen, last_seen
 		)
-		VALUES ($1, $2, $3, $4, $5, 1, $6, $6)
+		SELECT input.exchange_id, input.raw_symbol, input.raw_name, input.raw_network_id, input.chain_id, 1, input.seen_at, input.seen_at
+		FROM unnest(
+			$1::int[], $2::text[], $3::text[], $4::text[], $5::int[], $6::timestamptz[]
+		) AS input(exchange_id, raw_symbol, raw_name, raw_network_id, chain_id, seen_at)
 		ON CONFLICT (exchange_id, raw_symbol, raw_name, raw_network_id) DO UPDATE
 		SET chain_id = EXCLUDED.chain_id,
 		    confidence = LEAST(chain_aliases.confidence + 1, 3),
 		    last_seen = EXCLUDED.last_seen
-	`, upsert.ExchangeID, clean(upsert.RawSymbol), clean(upsert.RawName), clean(upsert.RawNetworkID), upsert.ChainID, upsert.SeenAt)
+	`, exchangeIDs, rawSymbols, rawNames, rawNetworkIDs, chainIDs, seenAt)
 	return err
+}
+
+func int32FromInt64(value int64) (int32, error) {
+	if value < -1<<31 || value > 1<<31-1 {
+		return 0, errors.New("id is outside int4 range")
+	}
+	return int32(value), nil
 }
 
 func slugify(value string) string {

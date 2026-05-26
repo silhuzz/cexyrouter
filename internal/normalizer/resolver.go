@@ -49,6 +49,21 @@ type ChainAliasUpsert struct {
 	SeenAt       time.Time
 }
 
+type CoinAliasRef struct {
+	ExchangeID int64
+	RawSymbol  string
+	RawName    string
+	Coin       CoinRef
+}
+
+type ChainAliasRef struct {
+	ExchangeID   int64
+	RawSymbol    string
+	RawName      string
+	RawNetworkID string
+	Chain        ChainRef
+}
+
 type AliasStore interface {
 	ExchangeID(ctx context.Context, exchangeSlug string) (int64, error)
 
@@ -87,8 +102,14 @@ type PollResolver struct {
 	exchangeIDs      map[string]int64
 	coinRefs         map[coinResolutionKey]CoinRef
 	chainRefs        map[chainAliasKey]ChainRef
+	coinAliasRefs    map[coinAliasKey]CoinRef
+	chainAliasRefs   map[chainAliasKey]ChainRef
 	seenCoinAliases  map[coinAliasKey]struct{}
 	seenChainAliases map[chainAliasKey]struct{}
+
+	deferAliasUpserts        bool
+	pendingCoinAliasUpserts  map[coinAliasKey]CoinAliasUpsert
+	pendingChainAliasUpserts map[chainAliasKey]ChainAliasUpsert
 }
 
 type coinAliasKey struct {
@@ -119,6 +140,8 @@ func NewPollResolver(store AliasStore, opts ...Option) *PollResolver {
 		exchangeIDs:      make(map[string]int64),
 		coinRefs:         make(map[coinResolutionKey]CoinRef),
 		chainRefs:        make(map[chainAliasKey]ChainRef),
+		coinAliasRefs:    make(map[coinAliasKey]CoinRef),
+		chainAliasRefs:   make(map[chainAliasKey]ChainRef),
 		seenCoinAliases:  make(map[coinAliasKey]struct{}),
 		seenChainAliases: make(map[chainAliasKey]struct{}),
 	}
@@ -133,6 +156,49 @@ func WithNow(now func() time.Time) Option {
 		if now != nil {
 			resolver.now = now
 		}
+	}
+}
+
+func WithExchangeID(exchangeSlug string, exchangeID int64) Option {
+	return func(resolver *PollResolver) {
+		slug := strings.ToLower(clean(exchangeSlug))
+		if slug != "" && exchangeID != 0 {
+			resolver.exchangeIDs[slug] = exchangeID
+		}
+	}
+}
+
+func WithAliasRefs(coinAliases []CoinAliasRef, chainAliases []ChainAliasRef) Option {
+	return func(resolver *PollResolver) {
+		for _, alias := range coinAliases {
+			key := coinAliasKey{
+				exchangeID: alias.ExchangeID,
+				rawSymbol:  clean(alias.RawSymbol),
+				rawName:    clean(alias.RawName),
+			}
+			if key.exchangeID != 0 && key.rawSymbol != "" && alias.Coin.ID != 0 {
+				resolver.coinAliasRefs[key] = alias.Coin
+			}
+		}
+		for _, alias := range chainAliases {
+			key := chainAliasKey{
+				exchangeID:   alias.ExchangeID,
+				rawSymbol:    clean(alias.RawSymbol),
+				rawName:      clean(alias.RawName),
+				rawNetworkID: clean(alias.RawNetworkID),
+			}
+			if key.exchangeID != 0 && (key.rawSymbol != "" || key.rawName != "") && alias.Chain.ID != 0 {
+				resolver.chainAliasRefs[key] = alias.Chain
+			}
+		}
+	}
+}
+
+func WithDeferredAliasUpserts() Option {
+	return func(resolver *PollResolver) {
+		resolver.deferAliasUpserts = true
+		resolver.pendingCoinAliasUpserts = make(map[coinAliasKey]CoinAliasUpsert)
+		resolver.pendingChainAliasUpserts = make(map[chainAliasKey]ChainAliasUpsert)
 	}
 }
 
@@ -226,6 +292,26 @@ func (r *PollResolver) resolveCoin(ctx context.Context, exchangeID int64, symbol
 		}
 	}
 
+	aliasKey := coinAliasKey{
+		exchangeID: exchangeID,
+		rawSymbol:  rawSymbol,
+		rawName:    rawName,
+	}
+	if coin, ok := r.coinAliasRefs[aliasKey]; ok {
+		upsert := CoinAliasUpsert{
+			ExchangeID: exchangeID,
+			RawSymbol:  rawSymbol,
+			RawName:    rawName,
+			CoinID:     coin.ID,
+			SeenAt:     r.now(),
+		}
+		if err := r.upsertCoinAliasOnce(ctx, upsert); err != nil {
+			return CoinRef{}, err
+		}
+		r.coinRefs[key] = coin
+		return coin, nil
+	}
+
 	coin, ok, err := r.store.FindCoinAlias(ctx, exchangeID, rawSymbol, rawName)
 	if err != nil {
 		return CoinRef{}, fmt.Errorf("find coin alias: %w", err)
@@ -253,6 +339,7 @@ func (r *PollResolver) resolveCoin(ctx context.Context, exchangeID int64, symbol
 	if err := r.upsertCoinAliasOnce(ctx, upsert); err != nil {
 		return CoinRef{}, err
 	}
+	r.coinAliasRefs[aliasKey] = coin
 	r.coinRefs[key] = coin
 	return coin, nil
 }
@@ -276,6 +363,22 @@ func (r *PollResolver) resolveChain(ctx context.Context, exchangeID int64, symbo
 		rawNetworkID: rawNetworkID,
 	}
 	if chain, ok := r.chainRefs[key]; ok {
+		return chain, nil
+	}
+
+	if chain, ok := r.chainAliasRefs[key]; ok {
+		upsert := ChainAliasUpsert{
+			ExchangeID:   exchangeID,
+			RawSymbol:    rawSymbol,
+			RawName:      rawName,
+			RawNetworkID: rawNetworkID,
+			ChainID:      chain.ID,
+			SeenAt:       r.now(),
+		}
+		if err := r.upsertChainAliasOnce(ctx, upsert); err != nil {
+			return ChainRef{}, err
+		}
+		r.chainRefs[key] = chain
 		return chain, nil
 	}
 
@@ -315,8 +418,24 @@ func (r *PollResolver) resolveChain(ctx context.Context, exchangeID int64, symbo
 	if err := r.upsertChainAliasOnce(ctx, upsert); err != nil {
 		return ChainRef{}, err
 	}
+	r.chainAliasRefs[key] = chain
 	r.chainRefs[key] = chain
 	return chain, nil
+}
+
+func (r *PollResolver) PendingAliasUpserts() ([]CoinAliasUpsert, []ChainAliasUpsert) {
+	if r == nil {
+		return nil, nil
+	}
+	coinUpserts := make([]CoinAliasUpsert, 0, len(r.pendingCoinAliasUpserts))
+	for _, upsert := range r.pendingCoinAliasUpserts {
+		coinUpserts = append(coinUpserts, upsert)
+	}
+	chainUpserts := make([]ChainAliasUpsert, 0, len(r.pendingChainAliasUpserts))
+	for _, upsert := range r.pendingChainAliasUpserts {
+		chainUpserts = append(chainUpserts, upsert)
+	}
+	return coinUpserts, chainUpserts
 }
 
 func (r *PollResolver) exchangeID(ctx context.Context, exchangeSlug string) (int64, error) {
@@ -347,6 +466,14 @@ func (r *PollResolver) upsertCoinAliasOnce(ctx context.Context, upsert CoinAlias
 	if _, ok := r.seenCoinAliases[key]; ok {
 		return nil
 	}
+	if r.deferAliasUpserts {
+		if r.pendingCoinAliasUpserts == nil {
+			r.pendingCoinAliasUpserts = make(map[coinAliasKey]CoinAliasUpsert)
+		}
+		r.pendingCoinAliasUpserts[key] = upsert
+		r.seenCoinAliases[key] = struct{}{}
+		return nil
+	}
 	if err := r.store.UpsertCoinAlias(ctx, upsert); err != nil {
 		return fmt.Errorf("upsert coin alias: %w", err)
 	}
@@ -362,6 +489,14 @@ func (r *PollResolver) upsertChainAliasOnce(ctx context.Context, upsert ChainAli
 		rawNetworkID: upsert.RawNetworkID,
 	}
 	if _, ok := r.seenChainAliases[key]; ok {
+		return nil
+	}
+	if r.deferAliasUpserts {
+		if r.pendingChainAliasUpserts == nil {
+			r.pendingChainAliasUpserts = make(map[chainAliasKey]ChainAliasUpsert)
+		}
+		r.pendingChainAliasUpserts[key] = upsert
+		r.seenChainAliases[key] = struct{}{}
 		return nil
 	}
 	if err := r.store.UpsertChainAlias(ctx, upsert); err != nil {

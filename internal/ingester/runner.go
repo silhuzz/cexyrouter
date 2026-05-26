@@ -152,6 +152,20 @@ func (r *Runner) RunAdapter(ctx context.Context, adapter types.Adapter) (CycleRe
 		}, fmt.Errorf("%s fetch rails: %w", slug, fetchErr)
 	}
 
+	aliasStore := normalizer.NewSQLStore(r.DB)
+	exchangeID, err := aliasStore.ExchangeID(ctx, slug)
+	if err != nil {
+		return CycleResult{}, fmt.Errorf("%s exchange lookup: %w", slug, err)
+	}
+	coinAliases, err := aliasStore.LoadCoinAliases(ctx, exchangeID)
+	if err != nil {
+		return CycleResult{}, fmt.Errorf("%s load coin aliases: %w", slug, err)
+	}
+	chainAliases, err := aliasStore.LoadChainAliases(ctx, exchangeID)
+	if err != nil {
+		return CycleResult{}, fmt.Errorf("%s load chain aliases: %w", slug, err)
+	}
+
 	tx, err := r.DB.Begin(ctx)
 	if err != nil {
 		return CycleResult{}, fmt.Errorf("%s begin transaction: %w", slug, err)
@@ -161,12 +175,12 @@ func (r *Runner) RunAdapter(ctx context.Context, adapter types.Adapter) (CycleRe
 	}()
 
 	store := normalizer.NewSQLStore(tx)
-	exchangeID, err := store.ExchangeID(ctx, slug)
-	if err != nil {
-		return CycleResult{}, fmt.Errorf("%s exchange lookup: %w", slug, err)
-	}
-
-	resolver := normalizer.NewPollResolver(store)
+	resolver := normalizer.NewPollResolver(
+		store,
+		normalizer.WithExchangeID(slug, exchangeID),
+		normalizer.WithAliasRefs(coinAliases, chainAliases),
+		normalizer.WithDeferredAliasUpserts(),
+	)
 	normalized, err := resolver.Normalize(ctx, fetchResult)
 	if err != nil {
 		return CycleResult{}, fmt.Errorf("%s normalize: %w", slug, err)
@@ -201,6 +215,11 @@ func (r *Runner) RunAdapter(ctx context.Context, adapter types.Adapter) (CycleRe
 		return CycleResult{}, fmt.Errorf("%s commit: %w", slug, err)
 	}
 
+	coinAliasUpserts, chainAliasUpserts := resolver.PendingAliasUpserts()
+	if err := r.flushAliasUpserts(ctx, coinAliasUpserts, chainAliasUpserts); err != nil {
+		return CycleResult{}, fmt.Errorf("%s upsert aliases: %w", slug, err)
+	}
+
 	return CycleResult{
 		ExchangeSlug: slug,
 		Fetched:      len(fetchResult.Snapshots),
@@ -212,6 +231,29 @@ func (r *Runner) RunAdapter(ctx context.Context, adapter types.Adapter) (CycleRe
 		FetchElapsed: fetchElapsed,
 		Elapsed:      time.Since(started),
 	}, nil
+}
+
+func (r *Runner) flushAliasUpserts(ctx context.Context, coinUpserts []normalizer.CoinAliasUpsert, chainUpserts []normalizer.ChainAliasUpsert) error {
+	if len(coinUpserts) == 0 && len(chainUpserts) == 0 {
+		return nil
+	}
+
+	tx, err := r.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	store := normalizer.NewSQLStore(tx)
+	if err := store.UpsertCoinAliases(ctx, coinUpserts); err != nil {
+		return err
+	}
+	if err := store.UpsertChainAliases(ctx, chainUpserts); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *Runner) diff(previous []diff.Rail, poll diff.Poll) (diff.Result, error) {
@@ -443,62 +485,176 @@ type sqlWriter struct {
 }
 
 func (w sqlWriter) UpsertRails(ctx context.Context, mutations []diff.RailMutation) error {
-	for _, mutation := range mutations {
-		rail := mutation.After
-		if _, err := w.tx.Exec(ctx, `
-			INSERT INTO rails (
-				exchange_id, coin_id, chain_id,
-				deposit_enabled, withdraw_enabled, deposit_confirmations,
-				withdraw_min, withdraw_fee, withdraw_fee_type, withdraw_fee_percent,
-				contract_address,
-				deposit_off_started_at, withdraw_off_started_at,
-				is_active, missing_since, missing_count, is_initial, last_seen_at
-			)
-			VALUES ($1, $2, $3, $4, $5, $6, $7::numeric, $8::numeric, $9, $10::numeric, $11, $12, $13, $14, $15, $16, $17, $18)
-			ON CONFLICT (exchange_id, coin_id, chain_id) DO UPDATE
-			SET deposit_enabled = EXCLUDED.deposit_enabled,
-			    withdraw_enabled = EXCLUDED.withdraw_enabled,
-			    deposit_confirmations = EXCLUDED.deposit_confirmations,
-			    withdraw_min = EXCLUDED.withdraw_min,
-			    withdraw_fee = EXCLUDED.withdraw_fee,
-			    withdraw_fee_type = EXCLUDED.withdraw_fee_type,
-			    withdraw_fee_percent = EXCLUDED.withdraw_fee_percent,
-			    contract_address = EXCLUDED.contract_address,
-			    deposit_off_started_at = EXCLUDED.deposit_off_started_at,
-			    withdraw_off_started_at = EXCLUDED.withdraw_off_started_at,
-			    is_active = EXCLUDED.is_active,
-			    missing_since = EXCLUDED.missing_since,
-			    missing_count = EXCLUDED.missing_count,
-			    is_initial = EXCLUDED.is_initial,
-			    last_seen_at = EXCLUDED.last_seen_at
-		`,
-			rail.Key.ExchangeID,
-			rail.Key.CoinID,
-			rail.Key.ChainID,
-			rail.DepositEnabled,
-			rail.WithdrawEnabled,
-			intArg(rail.DepositConfirmations),
-			decimalArg(rail.WithdrawMin),
-			decimalArg(rail.WithdrawFee),
-			feeTypeArg(rail.WithdrawFeeType),
-			decimalArg(rail.WithdrawFeePercent),
-			textArg(rail.ContractAddress),
-			timeArg(rail.DepositOffStartedAt),
-			timeArg(rail.WithdrawOffStartedAt),
-			rail.IsActive,
-			timeArg(rail.MissingSince),
-			rail.MissingCount,
-			rail.IsInitial,
-			rail.LastSeenAt,
-		); err != nil {
-			return err
-		}
+	if len(mutations) == 0 {
+		return nil
 	}
-	return nil
+
+	exchangeIDs := make([]int32, 0, len(mutations))
+	coinIDs := make([]int32, 0, len(mutations))
+	chainIDs := make([]int32, 0, len(mutations))
+	depositEnabled := make([]bool, 0, len(mutations))
+	withdrawEnabled := make([]bool, 0, len(mutations))
+	depositConfirmations := make([]pgtype.Int4, 0, len(mutations))
+	withdrawMin := make([]pgtype.Text, 0, len(mutations))
+	withdrawFee := make([]pgtype.Text, 0, len(mutations))
+	withdrawFeeType := make([]pgtype.Text, 0, len(mutations))
+	withdrawFeePercent := make([]pgtype.Text, 0, len(mutations))
+	contractAddress := make([]pgtype.Text, 0, len(mutations))
+	depositOffStartedAt := make([]pgtype.Timestamptz, 0, len(mutations))
+	withdrawOffStartedAt := make([]pgtype.Timestamptz, 0, len(mutations))
+	isActive := make([]bool, 0, len(mutations))
+	missingSince := make([]pgtype.Timestamptz, 0, len(mutations))
+	missingCount := make([]int32, 0, len(mutations))
+	isInitial := make([]bool, 0, len(mutations))
+	lastSeenAt := make([]time.Time, 0, len(mutations))
+
+	for i, mutation := range mutations {
+		rail := mutation.After
+		exchangeID, err := int32FromInt64(rail.Key.ExchangeID)
+		if err != nil {
+			return fmt.Errorf("rail mutation %d exchange id: %w", i, err)
+		}
+		coinID, err := int32FromInt64(rail.Key.CoinID)
+		if err != nil {
+			return fmt.Errorf("rail mutation %d coin id: %w", i, err)
+		}
+		chainID, err := int32FromInt64(rail.Key.ChainID)
+		if err != nil {
+			return fmt.Errorf("rail mutation %d chain id: %w", i, err)
+		}
+		depositConfirmation, err := nullableInt4(rail.DepositConfirmations)
+		if err != nil {
+			return fmt.Errorf("rail mutation %d deposit confirmations: %w", i, err)
+		}
+		missingCountValue, err := int32FromInt(rail.MissingCount)
+		if err != nil {
+			return fmt.Errorf("rail mutation %d missing count: %w", i, err)
+		}
+
+		exchangeIDs = append(exchangeIDs, exchangeID)
+		coinIDs = append(coinIDs, coinID)
+		chainIDs = append(chainIDs, chainID)
+		depositEnabled = append(depositEnabled, rail.DepositEnabled)
+		withdrawEnabled = append(withdrawEnabled, rail.WithdrawEnabled)
+		depositConfirmations = append(depositConfirmations, depositConfirmation)
+		withdrawMin = append(withdrawMin, nullableDecimalText(rail.WithdrawMin))
+		withdrawFee = append(withdrawFee, nullableDecimalText(rail.WithdrawFee))
+		withdrawFeeType = append(withdrawFeeType, nullableText(rail.WithdrawFeeType))
+		withdrawFeePercent = append(withdrawFeePercent, nullableDecimalText(rail.WithdrawFeePercent))
+		contractAddress = append(contractAddress, nullableText(rail.ContractAddress))
+		depositOffStartedAt = append(depositOffStartedAt, nullableTimestamptz(rail.DepositOffStartedAt))
+		withdrawOffStartedAt = append(withdrawOffStartedAt, nullableTimestamptz(rail.WithdrawOffStartedAt))
+		isActive = append(isActive, rail.IsActive)
+		missingSince = append(missingSince, nullableTimestamptz(rail.MissingSince))
+		missingCount = append(missingCount, missingCountValue)
+		isInitial = append(isInitial, rail.IsInitial)
+		lastSeenAt = append(lastSeenAt, rail.LastSeenAt)
+	}
+
+	_, err := w.tx.Exec(ctx, `
+		INSERT INTO rails (
+			exchange_id, coin_id, chain_id,
+			deposit_enabled, withdraw_enabled, deposit_confirmations,
+			withdraw_min, withdraw_fee, withdraw_fee_type, withdraw_fee_percent,
+			contract_address,
+			deposit_off_started_at, withdraw_off_started_at,
+			is_active, missing_since, missing_count, is_initial, last_seen_at
+		)
+		SELECT
+			input.exchange_id,
+			input.coin_id,
+			input.chain_id,
+			input.deposit_enabled,
+			input.withdraw_enabled,
+			input.deposit_confirmations,
+			input.withdraw_min::numeric,
+			input.withdraw_fee::numeric,
+			input.withdraw_fee_type,
+			input.withdraw_fee_percent::numeric,
+			input.contract_address,
+			input.deposit_off_started_at,
+			input.withdraw_off_started_at,
+			input.is_active,
+			input.missing_since,
+			input.missing_count,
+			input.is_initial,
+			input.last_seen_at
+		FROM unnest(
+			$1::int[], $2::int[], $3::int[],
+			$4::boolean[], $5::boolean[], $6::int[],
+			$7::text[], $8::text[], $9::text[], $10::text[],
+			$11::text[],
+			$12::timestamptz[], $13::timestamptz[],
+			$14::boolean[], $15::timestamptz[], $16::int[], $17::boolean[], $18::timestamptz[]
+		) AS input(
+			exchange_id, coin_id, chain_id,
+			deposit_enabled, withdraw_enabled, deposit_confirmations,
+			withdraw_min, withdraw_fee, withdraw_fee_type, withdraw_fee_percent,
+			contract_address,
+			deposit_off_started_at, withdraw_off_started_at,
+			is_active, missing_since, missing_count, is_initial, last_seen_at
+		)
+		ON CONFLICT (exchange_id, coin_id, chain_id) DO UPDATE
+		SET deposit_enabled = EXCLUDED.deposit_enabled,
+		    withdraw_enabled = EXCLUDED.withdraw_enabled,
+		    deposit_confirmations = EXCLUDED.deposit_confirmations,
+		    withdraw_min = EXCLUDED.withdraw_min,
+		    withdraw_fee = EXCLUDED.withdraw_fee,
+		    withdraw_fee_type = EXCLUDED.withdraw_fee_type,
+		    withdraw_fee_percent = EXCLUDED.withdraw_fee_percent,
+		    contract_address = EXCLUDED.contract_address,
+		    deposit_off_started_at = EXCLUDED.deposit_off_started_at,
+		    withdraw_off_started_at = EXCLUDED.withdraw_off_started_at,
+		    is_active = EXCLUDED.is_active,
+		    missing_since = EXCLUDED.missing_since,
+		    missing_count = EXCLUDED.missing_count,
+		    is_initial = EXCLUDED.is_initial,
+		    last_seen_at = EXCLUDED.last_seen_at
+	`,
+		exchangeIDs,
+		coinIDs,
+		chainIDs,
+		depositEnabled,
+		withdrawEnabled,
+		depositConfirmations,
+		withdrawMin,
+		withdrawFee,
+		withdrawFeeType,
+		withdrawFeePercent,
+		contractAddress,
+		depositOffStartedAt,
+		withdrawOffStartedAt,
+		isActive,
+		missingSince,
+		missingCount,
+		isInitial,
+		lastSeenAt,
+	)
+	return err
 }
 
 func (w sqlWriter) InsertEvents(ctx context.Context, events []diff.Event) error {
-	for _, event := range events {
+	if len(events) == 0 {
+		return nil
+	}
+
+	rows := make([][]any, 0, len(events))
+	for i, event := range events {
+		if event.RailID == 0 {
+			return fmt.Errorf("event %s missing rail id", event.Type)
+		}
+		exchangeID, err := int32FromInt64(event.Key.ExchangeID)
+		if err != nil {
+			return fmt.Errorf("event %d exchange id: %w", i, err)
+		}
+		coinID, err := int32FromInt64(event.Key.CoinID)
+		if err != nil {
+			return fmt.Errorf("event %d coin id: %w", i, err)
+		}
+		chainID, err := int32FromInt64(event.Key.ChainID)
+		if err != nil {
+			return fmt.Errorf("event %d chain id: %w", i, err)
+		}
 		before, err := json.Marshal(event.Before)
 		if err != nil {
 			return fmt.Errorf("marshal before state: %w", err)
@@ -507,21 +663,25 @@ func (w sqlWriter) InsertEvents(ctx context.Context, events []diff.Event) error 
 		if err != nil {
 			return fmt.Errorf("marshal after state: %w", err)
 		}
-		railID := event.RailID
-		if railID == 0 {
-			return fmt.Errorf("event %s missing rail id", event.Type)
-		}
-		if _, err := w.tx.Exec(ctx, `
-			INSERT INTO rail_events (
-				rail_id, exchange_id, coin_id, chain_id,
-				event_type, before, after, occurred_at
-			)
-			VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)
-		`, railID, event.Key.ExchangeID, event.Key.CoinID, event.Key.ChainID, string(event.Type), before, after, event.OccurredAt); err != nil {
-			return err
-		}
+		rows = append(rows, []any{
+			event.RailID,
+			exchangeID,
+			coinID,
+			chainID,
+			string(event.Type),
+			before,
+			after,
+			event.OccurredAt,
+		})
 	}
-	return nil
+
+	_, err := w.tx.CopyFrom(
+		ctx,
+		pgx.Identifier{"rail_events"},
+		[]string{"rail_id", "exchange_id", "coin_id", "chain_id", "event_type", "before", "after", "occurred_at"},
+		pgx.CopyFromRows(rows),
+	)
+	return err
 }
 
 func intPtrFromInt4(value pgtype.Int4) *int {
@@ -550,40 +710,51 @@ func timePtrFromTimestamptz(value pgtype.Timestamptz) *time.Time {
 	return &value.Time
 }
 
-func intArg(value *int) any {
+func int32FromInt64(value int64) (int32, error) {
+	if value < -1<<31 || value > 1<<31-1 {
+		return 0, fmt.Errorf("%d is outside int4 range", value)
+	}
+	return int32(value), nil
+}
+
+func int32FromInt(value int) (int32, error) {
+	if value < -1<<31 || value > 1<<31-1 {
+		return 0, fmt.Errorf("%d is outside int4 range", value)
+	}
+	return int32(value), nil
+}
+
+func nullableInt4(value *int) (pgtype.Int4, error) {
 	if value == nil {
-		return nil
+		return pgtype.Int4{}, nil
 	}
-	return *value
+	converted, err := int32FromInt(*value)
+	if err != nil {
+		return pgtype.Int4{}, err
+	}
+	return pgtype.Int4{Int32: converted, Valid: true}, nil
 }
 
-func decimalArg(value *decimal.Decimal) any {
+func nullableDecimalText(value *decimal.Decimal) pgtype.Text {
 	if value == nil {
-		return nil
+		return pgtype.Text{}
 	}
-	return value.String()
+	return pgtype.Text{String: value.String(), Valid: true}
 }
 
-func feeTypeArg(value string) any {
-	if value == "" {
-		return nil
-	}
-	return value
-}
-
-func textArg(value string) any {
+func nullableText(value string) pgtype.Text {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return nil
+		return pgtype.Text{}
 	}
-	return value
+	return pgtype.Text{String: value, Valid: true}
 }
 
-func timeArg(value *time.Time) any {
+func nullableTimestamptz(value *time.Time) pgtype.Timestamptz {
 	if value == nil {
-		return nil
+		return pgtype.Timestamptz{}
 	}
-	return *value
+	return pgtype.Timestamptz{Time: *value, Valid: true}
 }
 
 var _ diff.Writer = (*sqlWriter)(nil)

@@ -227,6 +227,77 @@ func TestNormalizeUsesVerifiedContractCoinWithoutPoisoningGenericAlias(t *testin
 	}
 }
 
+func TestHydratedAliasesAvoidLookupAndQueueDeferredUpserts(t *testing.T) {
+	ctx := context.Background()
+	store := newFakeStore()
+
+	resolver := NewPollResolver(
+		store,
+		WithNow(fixedNow),
+		WithExchangeID("binance", 1),
+		WithAliasRefs(
+			[]CoinAliasRef{{
+				ExchangeID: 1,
+				RawSymbol:  "USDT",
+				RawName:    "Tether USD",
+				Coin:       CoinRef{ID: 10, Slug: "usdt", Symbol: "USDT", Name: "Tether USD"},
+			}},
+			[]ChainAliasRef{{
+				ExchangeID:   1,
+				RawSymbol:    "TRC20",
+				RawName:      "TRON",
+				RawNetworkID: "",
+				Chain:        ChainRef{ID: 30, Slug: "tron", Symbol: "TRX", Name: "TRON"},
+			}},
+		),
+		WithDeferredAliasUpserts(),
+	)
+
+	result, err := resolver.Normalize(ctx, types.FetchResult{
+		Complete: true,
+		Snapshots: []types.RailSnapshot{{
+			ExchangeSlug:   "binance",
+			CoinSymbol:     "USDT",
+			CoinName:       "Tether USD",
+			RawChainSymbol: "TRC20",
+			RawChainName:   "TRON",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Normalize: %v", err)
+	}
+	if got := result.Rails[0].CoinID; got != 10 {
+		t.Fatalf("CoinID = %d, want hydrated alias coin 10", got)
+	}
+	if got := result.Rails[0].ChainID; got != 30 {
+		t.Fatalf("ChainID = %d, want hydrated alias chain 30", got)
+	}
+
+	if store.coinAliasFinds != 0 || store.coinCanonicalFinds != 0 {
+		t.Fatalf("coin lookup counts = alias:%d canonical:%d, want 0/0", store.coinAliasFinds, store.coinCanonicalFinds)
+	}
+	if store.chainAliasFinds != 0 || store.chainCanonicalFinds != 0 || store.chainSlugFinds != 0 {
+		t.Fatalf("chain lookup counts = alias:%d canonical:%d slug:%d, want 0/0/0", store.chainAliasFinds, store.chainCanonicalFinds, store.chainSlugFinds)
+	}
+	if len(store.coinAliasUpserts) != 0 || len(store.chainAliasUpserts) != 0 {
+		t.Fatalf("immediate alias upserts = coin:%d chain:%d, want 0/0", len(store.coinAliasUpserts), len(store.chainAliasUpserts))
+	}
+
+	coinUpserts, chainUpserts := resolver.PendingAliasUpserts()
+	if len(coinUpserts) != 1 {
+		t.Fatalf("deferred coin upserts = %d, want 1", len(coinUpserts))
+	}
+	if got := coinUpserts[0]; got.ExchangeID != 1 || got.RawSymbol != "USDT" || got.RawName != "Tether USD" || got.CoinID != 10 || !got.SeenAt.Equal(fixedNow()) {
+		t.Fatalf("unexpected deferred coin upsert: %+v", got)
+	}
+	if len(chainUpserts) != 1 {
+		t.Fatalf("deferred chain upserts = %d, want 1", len(chainUpserts))
+	}
+	if got := chainUpserts[0]; got.ExchangeID != 1 || got.RawSymbol != "TRC20" || got.RawName != "TRON" || got.ChainID != 30 || !got.SeenAt.Equal(fixedNow()) {
+		t.Fatalf("unexpected deferred chain upsert: %+v", got)
+	}
+}
+
 type fakeStore struct {
 	exchanges map[string]int64
 
